@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import pyabf as pyabf
 import numpy as np
-
+from lmfit import Model
 
 class ActiveAbf:
     def __init__(self, abf_file):
@@ -94,7 +94,9 @@ def plot_sweep(sweep):
     plt.show()
 
 
-def plot_all_sweeps(ActiveAbf, sweep_interval):
+def plot_all_sweeps(ActiveAbf, sweep_interval=None):
+    if sweep_interval is None:
+        sweep_interval = [0, -1]
     fig, axs = plt.subplots(2)
     nr_of_sweeps = ActiveAbf.sweep_count()
     color_idx = np.linspace(0, 1, nr_of_sweeps)
@@ -105,6 +107,7 @@ def plot_all_sweeps(ActiveAbf, sweep_interval):
         time = sweep_data['times']
         current = sweep_data['currents']
         voltage = sweep_data['voltages']
+        print('the type is',time.dtype is 'float64')
         axs[0].plot(time, current, alpha=.5,label="{} mV".format(sweep_data['input clamp voltage'][round(len(sweep_data['input clamp voltage']) / 2)]))
         axs[1].plot(time, voltage, alpha=.5)
         axs[0].legend()
@@ -116,3 +119,5 @@ def plot_all_sweeps(ActiveAbf, sweep_interval):
                 ax.grid(alpha=.2)
                 ax.axvspan(sweep_data['shutter on'], sweep_data['shutter off'], color='orange', alpha=.3, lw=0)
     plt.show()
+
+
