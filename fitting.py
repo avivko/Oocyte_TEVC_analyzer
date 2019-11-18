@@ -1,5 +1,6 @@
 from AbfAnalysis import *
 from helpers import *
+from lmfit import Model
 import numpy as np
 import statistics
 
@@ -43,6 +44,7 @@ def guess_init_vals(x,y,function_name):
         y0_guesses = [first_guess_y0, second_guess_y0, third_guess_y0]
         estimated_y0 = statistics.mean(y0_guesses)
         return estimated_m, estimated_y0
+
     if function_name == 'linear':
         estimated_m, estimated_y0 = linear_guess(x,y)
         return estimated_m, estimated_y0
@@ -51,7 +53,8 @@ def guess_init_vals(x,y,function_name):
         estimated_y_ss = estimated_linear_slope*4*x[-1]+estimated_linear_y0
         estimated_tau = (estimated_y_ss-estimated_linear_y0)/estimated_linear_slope
         return estimated_linear_y0, estimated_y_ss, estimated_tau
-
+    else:
+        raise NotImplementedError('this function was not implemented for the function_name:', function_name)
 
 
 def fit_linear(x,y, make_plot=False):
@@ -74,9 +77,11 @@ def fit_exponential(x,y, make_plot=False):
     y0, y_ss, tau = guess_init_vals(x, y, 'exponential')
     fit_model = Model(first_oder_sys_response)
     fit_model.set_param_hint('tau', value=tau, min=0, max=20)
-    params = fit_model.make_params(y0=y0, y_ss=y_ss)  # tau=tau
+    params = fit_model.make_params(y0=y0, y_ss=y_ss)
     result = fit_model.fit(y, params, t=x)
-    print(len(result.best_fit))
+    if result.redchi > 5:
+        raise Warning('The reduced chi of this fit is bigger than 5. Chi =', result.redchi)
+    print(result.best_fit)
     if make_plot:
         print(result.fit_report())
         plt.plot(x, y, 'bo')
@@ -102,7 +107,6 @@ def fit_biexponential(x,y,y0_1,y0_2,y_ss_1,y_ss_2,tau_1,tau_2, make_plot=False):
     return result
 
 
-
 def fit_pre_light(sweep, fit_type, t0=None, make_plot=True):
     sweep_data = sweep.get_sweep_data()
     sweep_times = sweep_data['times']
@@ -118,14 +122,41 @@ def fit_pre_light(sweep, fit_type, t0=None, make_plot=True):
     fit_time = sweep_times[t0_index:t_light_on_index]
     fit_current = sweep_currents[t0_index:t_light_on_index]
     if fit_type == 'exponential':
-        return fit_exponential(fit_time,fit_current,make_plot=make_plot)
+        return fit_exponential(fit_time, fit_current,make_plot=make_plot)
+    else:
+        raise NotImplementedError('this function was not implemented for the fit_type:', fit_type)
 
-abfToAnalyze = '/home/kormanav/Dokumente/TEVC_13_11_2019/2019_11_13_0085.abf'
+
+def get_r_squared_from_fit_results(fit_results):
+    ss_res = np.sum(fit_results.residual ** 2)
+    ss_tot = np.sum((fit_results.data - np.mean(fit_results.data)) ** 2)
+    r_squared = 1 - (ss_res / ss_tot)
+    return r_squared
+
+
+def estimate_data_with_fit(t, function, fit_result):
+    fit_result_values = fit_result.best_values
+    y = np.zeros(shape=t.shape)
+    if function == 'exponential':
+        y0 = fit_result_values['y0']
+        y_ss = fit_result_values['y_ss']
+        tau = fit_result_values['tau']
+        for i in range(len(t)):
+            y[i] = first_oder_sys_response(t[i], y0, y_ss, tau)
+    return y
+
+
+# abfToAnalyze = '/home/kormanav/Dokumente/TEVC_13_11_2019/2019_11_13_0085.abf'
+
+abfToAnalyze = '/Volumes/Transcend/TEVC_13_11_2019/2019_11_13_0085.abf'
 
 abf = ActiveAbf(abfToAnalyze)
-sweepnr = 3
-sweep1 = sweep(abfToAnalyze,sweepnr,[400,16000])
+sweepnr = 4
+sweep1 = sweep(abfToAnalyze, sweepnr, [400, 16000])
 plot_sweep(sweep1)
 pre_light_fit_result = fit_pre_light(sweep1, 'exponential')
-pre_light_fit_best_vals = pre_light_fit_result.best_values
-pre_light_fit_best_r_quad = 1 - (np.sum(pre_light_fit_result.residual ** 2))
+t = np.linspace(0, 3.0, num=5000)
+y = estimate_data_with_fit(t,'exponential',pre_light_fit_result)
+print(t, y)
+plt.plot(t, y, 'bo')
+plt.show()

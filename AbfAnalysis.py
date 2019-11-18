@@ -1,7 +1,8 @@
 import matplotlib.pyplot as plt
 import pyabf as pyabf
 import numpy as np
-from lmfit import Model
+
+
 
 class ActiveAbf:
     def __init__(self, abf_file):
