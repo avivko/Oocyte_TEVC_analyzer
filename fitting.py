@@ -103,7 +103,7 @@ def fit_biexponential(x,y,y0_1,y0_2,y_ss_1,y_ss_2,tau_1,tau_2, make_plot=False):
 
 
 
-def fit_pre_light(sweep, fit_type, init_param_dict, t0=None):
+def fit_pre_light(sweep, fit_type, t0=None, make_plot=True):
     sweep_data = sweep.get_sweep_data()
     sweep_times = sweep_data['times']
     sweep_currents = sweep_data['currents']
@@ -118,10 +118,7 @@ def fit_pre_light(sweep, fit_type, init_param_dict, t0=None):
     fit_time = sweep_times[t0_index:t_light_on_index]
     fit_current = sweep_currents[t0_index:t_light_on_index]
     if fit_type == 'exponential':
-        init_A = init_param_dict['init_A']
-        init_k = init_param_dict['init_k']
-        init_C = init_param_dict['init_C']
-        fit_exponential(fit_time,fit_current,init_A,init_k,init_C,make_plot=True)
+        return fit_exponential(fit_time,fit_current,make_plot=make_plot)
 
 abfToAnalyze = '/home/kormanav/Dokumente/TEVC_13_11_2019/2019_11_13_0085.abf'
 
@@ -129,29 +126,6 @@ abf = ActiveAbf(abfToAnalyze)
 sweepnr = 3
 sweep1 = sweep(abfToAnalyze,sweepnr,[400,16000])
 plot_sweep(sweep1)
-sweep1before=sweep(abfToAnalyze,sweepnr,[333,6600])
-sweep1_before_data = sweep1before.get_sweep_data()
-sweep1_before_times = sweep1_before_data['times']
-sweep1_before_currents = sweep1_before_data['currents']
-sweep1after=sweep(abfToAnalyze,sweepnr,[12000,16000])
-sweep1_after_data = sweep1after.get_sweep_data()
-sweep1_after_times = sweep1_after_data['times']
-sweep1_after_currents = sweep1_after_data['currents']
-off_sweep1_times = np.concatenate((sweep1_before_times,sweep1_after_times))
-off_sweep1_currents = np.concatenate((sweep1_before_currents,sweep1_after_currents))
-#sweep_times = off_sweep_data['times']
-#sweep_currents = off_sweep_data['currents']
-fit_exponential(off_sweep1_times,off_sweep1_currents,make_plot=True)
-#initial_fit_parameters = {
-#    'init_A': 1000,
-#    'init_k': -6,
- #   'init_C': 10
-#}
-#fit_pre_light(sweep1,'exponential',initial_fit_parameters)
-#sweep1slice = sweep(abfToAnalyze,2,[500,2000])
-# sweep1data = sweep1slice.get_sweep_data()
-# time = sweep1data['times']
-# current = sweep1data['currents']
-# fit_linear(time, current, 0.01, 300)
-# fit_exponential(time, current, 1000, -6, 500)
-# plot_sweep(sweep1)
+pre_light_fit_result = fit_pre_light(sweep1, 'exponential')
+pre_light_fit_best_vals = pre_light_fit_result.best_values
+pre_light_fit_best_r_quad = 1 - (np.sum(pre_light_fit_result.residual ** 2))
