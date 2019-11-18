@@ -7,6 +7,7 @@ class ActiveAbf:
     def __init__(self, abf_file):
         self._abf_data = pyabf.ABF(abf_file)
         self._abf_file_path = abf_file
+        self._data_points_per_sec = self._abf_data.dataRate
         self._sweeps = self._abf_data.sweepCount
 
     def sweep_count(self):

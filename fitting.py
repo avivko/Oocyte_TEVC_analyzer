@@ -10,6 +10,7 @@ def linear(t,m,y0):
 def first_oder_sys_response(t,y0,y_ss,tau):
     return (y0-y_ss)*np.exp(-t/tau) + y_ss
 
+
 def two_first_oder_sys_responses(t,y0_1,y0_2,y_ss_1,y_ss_2,tau_1,tau_2):
     return (y0_1-y_ss_1)*np.exp(-t/tau_1) + (y0_2-y_ss_2)*np.exp(-t/tau_2) + y_ss_1 + y_ss_2
 
@@ -23,27 +24,45 @@ def two_first_oder_sys_responses(t,y0_1,y0_2,y_ss_1,y_ss_2,tau_1,tau_2):
 
 
 def guess_init_vals(x,y,function_name):
-    if function_name == 'linear':
+    """
+    guesses initial values for different functions
+    :param x: np array of x values
+    :param y: np array of x values
+    :param function_name: 'linear' / 'exponential' / 'biexponential'
+    :return: a dictionary with the initial values
+    """
+    def linear_guess(x,y):
         x_first_half, x_second_half = np.array_split(x, 2)
-        y_first_half, y_second_half = np.array_split(y,2)
+        y_first_half, y_second_half = np.array_split(y, 2)
         avg_delta_x = np.average(x_second_half) - np.average(x_first_half)
         avg_delta_y = np.average(y_second_half) - np.average(y_first_half)
-        estimated_m = avg_delta_y/avg_delta_x
-        first_guess_y0 = y[0] - estimated_m*x[0]
-        second_guess_y0 = y_second_half[0] - estimated_m*x_second_half[0]
-        third_guess_y0 = y[-1] - estimated_m*x[-1]
-        y0_guesses = [first_guess_y0,second_guess_y0,third_guess_y0]
+        estimated_m = avg_delta_y / avg_delta_x
+        first_guess_y0 = y[0] - estimated_m * x[0]
+        second_guess_y0 = y_second_half[0] - estimated_m * x_second_half[0]
+        third_guess_y0 = y[-1] - estimated_m * x[-1]
+        y0_guesses = [first_guess_y0, second_guess_y0, third_guess_y0]
         estimated_y0 = statistics.mean(y0_guesses)
         return estimated_m, estimated_y0
+    if function_name == 'linear':
+        estimated_m, estimated_y0 = linear_guess(x,y)
+        return estimated_m, estimated_y0
+    if function_name == 'exponential':
+        estimated_linear_slope ,estimated_linear_y0 = linear_guess(x,y)
+        estimated_y_ss = estimated_linear_slope*4*x[-1]+estimated_linear_y0
+        estimated_tau = (estimated_y_ss-estimated_linear_y0)/estimated_linear_slope
+        return estimated_linear_y0, estimated_y_ss, estimated_tau
 
 
-def fit_linear(x,y,init_m,init_y0, make_plot=False):
+
+def fit_linear(x,y, make_plot=False):
+    init_m, init_y0 = guess_init_vals(x, y, 'linear')
     fit_model = Model(linear)
     result = fit_model.fit(y, t=x, m=init_m, y0=init_y0)
 
     if make_plot:
         print(result.fit_report())
         plt.plot(x, y, 'bo')
+        plt.plot(x, result.init_fit, 'k--', label='initial fit')
         plt.plot(x, result.best_fit, 'r-', label='best fit')
         plt.legend(loc='best')
         plt.show()
@@ -51,13 +70,17 @@ def fit_linear(x,y,init_m,init_y0, make_plot=False):
     return result
 
 
-def fit_exponential(x,y,y0,y_ss,tau, make_plot=False):
+def fit_exponential(x,y, make_plot=False):
+    y0, y_ss, tau = guess_init_vals(x, y, 'exponential')
     fit_model = Model(first_oder_sys_response)
-    result = fit_model.fit(y, t=x, y0=y0, y_ss=y_ss, tau=tau)
-
+    fit_model.set_param_hint('tau', value=tau, min=0, max=20)
+    params = fit_model.make_params(y0=y0, y_ss=y_ss)  # tau=tau
+    result = fit_model.fit(y, params, t=x)
+    print(len(result.best_fit))
     if make_plot:
         print(result.fit_report())
         plt.plot(x, y, 'bo')
+        plt.plot(x, result.init_fit, 'k--', label='initial fit')
         plt.plot(x, result.best_fit, 'r-', label='best fit')
         plt.legend(loc='best')
         plt.show()
@@ -100,11 +123,25 @@ def fit_pre_light(sweep, fit_type, init_param_dict, t0=None):
         init_C = init_param_dict['init_C']
         fit_exponential(fit_time,fit_current,init_A,init_k,init_C,make_plot=True)
 
-#abfToAnalyze = '/home/kormanav/Dokumente/TEVC_29_10_2019/2019_10_29_0053.abf'
+abfToAnalyze = '/home/kormanav/Dokumente/TEVC_13_11_2019/2019_11_13_0085.abf'
 
-#abf = ActiveAbf(abfToAnalyze)
-#sweep1=sweep(abfToAnalyze,1,[400,4500])
-#plot_sweep(sweep1)
+abf = ActiveAbf(abfToAnalyze)
+sweepnr = 3
+sweep1 = sweep(abfToAnalyze,sweepnr,[400,16000])
+plot_sweep(sweep1)
+sweep1before=sweep(abfToAnalyze,sweepnr,[333,6600])
+sweep1_before_data = sweep1before.get_sweep_data()
+sweep1_before_times = sweep1_before_data['times']
+sweep1_before_currents = sweep1_before_data['currents']
+sweep1after=sweep(abfToAnalyze,sweepnr,[12000,16000])
+sweep1_after_data = sweep1after.get_sweep_data()
+sweep1_after_times = sweep1_after_data['times']
+sweep1_after_currents = sweep1_after_data['currents']
+off_sweep1_times = np.concatenate((sweep1_before_times,sweep1_after_times))
+off_sweep1_currents = np.concatenate((sweep1_before_currents,sweep1_after_currents))
+#sweep_times = off_sweep_data['times']
+#sweep_currents = off_sweep_data['currents']
+fit_exponential(off_sweep1_times,off_sweep1_currents,make_plot=True)
 #initial_fit_parameters = {
 #    'init_A': 1000,
 #    'init_k': -6,
