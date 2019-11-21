@@ -6,15 +6,34 @@ from lmfit import Model
 import numpy as np
 import statistics
 import warnings
+import time
 
 
 def linear(t, m, y0):
-    return m * t + y0
+        return m * t + y0
 
+
+def linear_from_zero(t, m, shift_along_t=0):
+    if shift_along_t != 0:
+        if t < shift_along_t:
+            return 0
+        if t >= shift_along_t:
+            return m * (t-shift_along_t)
+    elif shift_along_t == 0:
+        return m * t
 
 def first_oder_sys_response(t, y0, y_ss, tau):
     return (y0 - y_ss) * np.exp(-t / tau) + y_ss
 
+
+def first_oder_sys_response_from_zero(t, y_ss, tau, shift_along_t=0):
+    if shift_along_t !=0:
+        if t < shift_along_t:
+            return 0
+        if t >= shift_along_t:
+            return y_ss *(1-np.exp(-(t-shift_along_t) / tau))
+    else:
+        return y_ss *(1-np.exp(-(t) / tau))
 
 def two_first_oder_sys_responses(t, y0_1, y0_2, y_ss_1, y_ss_2, tau_1, tau_2):
     return (y0_1 - y_ss_1) * np.exp(-t / tau_1) + (y0_2 - y_ss_2) * np.exp(-t / tau_2) + y_ss_1 + y_ss_2
@@ -49,14 +68,28 @@ def guess_init_vals(x, y, function_name):
         estimated_y0 = statistics.mean(y0_guesses)
         return estimated_m, estimated_y0
 
+    def linear_guess_from_zero(x, y):
+        avg_x = np.average(x)
+        avg_y = np.average(y)
+        estimated_m = avg_y / avg_x
+        return estimated_m
+
     if function_name == 'linear':
         estimated_m, estimated_y0 = linear_guess(x, y)
         return estimated_m, estimated_y0
+    if function_name == 'linear from zero':
+        estimated_m = linear_guess_from_zero(x, y)
+        return estimated_m
     if function_name == 'exponential':
         estimated_linear_slope, estimated_linear_y0 = linear_guess(x, y)
         estimated_y_ss = estimated_linear_slope * 4 * x[-1] + estimated_linear_y0
         estimated_tau = (estimated_y_ss - estimated_linear_y0) / estimated_linear_slope
         return estimated_linear_y0, estimated_y_ss, estimated_tau
+    if function_name == 'exponential from zero':
+        estimated_linear_slope = linear_guess_from_zero(x, y)
+        estimated_y_ss = estimated_linear_slope * 4 * x[-1]
+        estimated_tau = estimated_y_ss / estimated_linear_slope
+        return estimated_y_ss, estimated_tau
     else:
         raise NotImplementedError('this function was not implemented for the function_name:', function_name)
 
@@ -76,37 +109,39 @@ def plot_fit(x, y, fit_result):
     plt.show()
 
 
-def fit_linear(x, y, constrained_y0=None ,make_plot=False):
+def fit_linear(x, y ,make_plot=False):
     init_m, init_y0 = guess_init_vals(x, y, 'linear')
     fit_model = Model(linear)
-    if constrained_y0 is not None:
-        y0 = constrained_y0
-        fit_model.set_param_hint('y0', value=y0, vary=False)
-        params = fit_model.make_params(m=init_m)
-    elif constrained_y0 is None:
-        params = fit_model.make_params(y0=init_y0, m=init_m)
-    else:
-        raise ValueError('constrained_y0 should be None or a float. Is, however, a '+type(constrained_y0))
+    params = fit_model.make_params(y0=init_y0, m=init_m)
     result = fit_model.fit(y,params, t=x)
 
     if make_plot:
         plot_fit(x, y, result)
 
-    return result
+    return 'linear', result
 
 
-def fit_exponential(x, y, constrained_y0=None, make_plot=False ):
-    y0, y_ss, tau = guess_init_vals(x, y, 'exponential')
-    fit_model = Model(first_oder_sys_response)
-    fit_model.set_param_hint('tau', value=tau, min=0, max=60)
-    if constrained_y0 is not None:
-        y0 = constrained_y0
-        fit_model.set_param_hint('y0', value=y0, vary=False)
-        params = fit_model.make_params(y_ss=y_ss)
-    elif constrained_y0 is None:
+def fit_exponential(x, y, starting_from_0=False, first_non_zero=0, make_plot=False ):
+    if not starting_from_0:
+        fit_model = Model(first_oder_sys_response)
+        y0, y_ss, tau = guess_init_vals(x, y, 'exponential')
+        fit_model.set_param_hint('tau', value=tau, min=0, max=60)
         params = fit_model.make_params(y0=y0, y_ss=y_ss)
+    elif starting_from_0:
+        fit_model = Model(first_oder_sys_response_from_zero)
+        if first_non_zero == 0:
+            y_ss, tau = guess_init_vals(x, y, 'exponential from zero')
+            fit_model.set_param_hint('tau', value=tau, min=0, max=60)
+            params = fit_model.make_params(y_ss=y_ss, shift_along_t=0)
+        elif first_non_zero > 0:
+            first_non_zero_index = get_index_of_unique_value(first_non_zero,x)
+            y_ss, tau = guess_init_vals(x[first_non_zero_index:]-first_non_zero, y[first_non_zero_index:], 'exponential from zero')
+            fit_model.set_param_hint('tau', value=tau, min=0, max=60)
+            params = fit_model.make_params(y_ss=y_ss, shift_along_t=first_non_zero)
+        else:
+            raise ValueError('first_non_zero should be the time when the shutter is turned on (>= 0) but is:',str(first_non_zero))
     else:
-        raise ValueError('constrained_y0 should be None or a float. Is, however, a '+type(constrained_y0))
+        raise ValueError('starting_from_0 should be True/ False. is: '+str(starting_from_0))
     result = fit_model.fit(y, params, t=x)
     if make_plot:
         plot_fit(x, y, result)
@@ -114,8 +149,8 @@ def fit_exponential(x, y, constrained_y0=None, make_plot=False ):
         warnings.warn('The reduced chi of the exponential fit is bigger than 15. Chi =' + str(result.redchi) +
                       '. trying linear fit...')
         linear_result = fit_linear(x, y, make_plot=make_plot)
-        if linear_result.redchi > result.redchi:
-            raise ValueError('The reduced chi of the linear fit is even worse . Chi =' + str(linear_result.redchi) +
+        if linear_result[1].redchi > result.redchi:
+            raise ValueError('The reduced chi of the linear fit is even worse . Chi =' + str(linear_result[1].redchi) +
                              '. Chi of both fits is too large!. Try to begin the sweep from a later time point')
         else:
             result = linear_result
@@ -158,7 +193,7 @@ def fit_pre_light(sweep, initial_fit_type, t0=None, make_plot=True):
     fit_time = sweep_times[t0_index:t_light_on_index]
     fit_current = sweep_currents[t0_index:t_light_on_index]
     if initial_fit_type == 'exponential':
-        return fit_exponential(fit_time, fit_current, make_plot=make_plot)
+        return fit_exponential(fit_time,fit_current,make_plot=make_plot)
     if initial_fit_type == 'linear':
         return fit_linear(fit_time, fit_current, make_plot=make_plot)
     else:
@@ -175,7 +210,7 @@ def fit_after_light(sweep, initial_fit_type, t0_after=None, make_plot=True):
     recorded_t_clamp_off = get_closest_value_from_ordered_array(t_clamp_off, sweep_times)
     t_clamp_off_index = get_index_of_unique_value(recorded_t_clamp_off, sweep_times)
     if t0_after is None:  # if starting time for fit is not specified, 1.5 s before the clamp is off will be taken
-        t0_after = t_clamp_off - 1
+        t0_after = t_clamp_off - 0.5
     assert (
                 t0_after > t_light_off), 'the second fit should not start before the light is off (and steady state ' \
                                          'is achieved): ' + str( t0_after) + ' > ' + str(t_light_off)
@@ -186,14 +221,14 @@ def fit_after_light(sweep, initial_fit_type, t0_after=None, make_plot=True):
     fit_time = sweep_times[t0_after_index:t_clamp_off_index]
     fit_current = sweep_currents[t0_after_index:t_clamp_off_index]
     if initial_fit_type == 'exponential':
-        return fit_exponential(fit_time, fit_current, constrained_y0=t_light_on,make_plot=make_plot)
+        return fit_exponential(fit_time, fit_current,starting_from_0=True, first_non_zero=t_light_on,make_plot=make_plot)
     if initial_fit_type == 'linear':
-        return fit_linear(fit_time, fit_current, constrained_y0=t_light_on, make_plot=make_plot)
+        return fit_linear(fit_time, fit_current, make_plot=make_plot)
     else:
         raise NotImplementedError('this function was not implemented for the initial_fit_type:', initial_fit_type)
 
 
-def estimate_data_with_fit(t, function, fit_result):
+def estimate_data_with_fit(t, function, fit_result,shift_results_by=0):
     fit_result_values = fit_result.best_values
     y = np.zeros(shape=t.shape)
     if function == 'exponential':

@@ -27,5 +27,5 @@ def get_closest_value_from_ordered_array(value,np_array): # Gets the first one a
 
 def get_index_of_unique_value(value,np_array): # returns the first one of there are a few!
     assert isinstance(value, (int,float)) and isinstance(np_array, np.ndarray), 'value or array have bad type: value is {}, array is {}'.format(type(value),np_array.dtype)
-    assert np_array[0] <= value <= np_array[-1], 'value out of range of the array values'
+    assert np_array[0] <= value <= np_array[-1], 'value out of range of the array values: '+str(np_array[0])+' <= '+str(value)+' <= '+str(np_array[-1])
     return int(np.where(np_array == value)[0][0])

@@ -38,28 +38,24 @@ class ActiveAbf:
 
 
 class sweep(ActiveAbf):
-    def __init__(self, abf_file, sweep_nr, interval=None):
+    def __init__(self, abf_file, sweep_nr):
         super().__init__(abf_file)
         self._abf_data.setSweep(sweep_nr)
         self.t_clamp_on = self._abf_data.sweepEpochs.p1s[1] * self._abf_data.dataSecPerPoint
         self.t_shutter_on = self._abf_data.sweepEpochs.p1s[2] * self._abf_data.dataSecPerPoint
         self.t_shutter_off = self._abf_data.sweepEpochs.p1s[3] * self._abf_data.dataSecPerPoint
         self.t_clamp_off = self._abf_data.sweepEpochs.p1s[4] * self._abf_data.dataSecPerPoint
-        if interval is None:
-            interval = [0, -1]
-        else:
-            assert (type(interval) == list and len(interval) == 2), 'sweep interval should be a list like [t_0,t_last]'
-        self._currents = self._abf_data.sweepY[interval[0]:interval[1]]
+        self._currents = self._abf_data.sweepY
         self._currents_title = self._abf_data.sweepLabelY
-        self._times = self._abf_data.sweepX[interval[0]:interval[1]]
+        self._times = self._abf_data.sweepX
         self._times_title = self._abf_data.sweepLabelX
-        self._input_voltage = self._abf_data.sweepC[interval[0]:interval[1]]
+        self._input_voltage = self._abf_data.sweepC
         self._input_voltage_title = 'Digital Input Clamp Voltage (mV)'
         self._abf_data.setSweep(sweep_nr, 1)
-        self._voltages = self._abf_data.sweepY[interval[0]:interval[1]]
+        self._voltages = self._abf_data.sweepY
         self._voltages_title = self._abf_data.sweepLabelY
         self._abf_data.setSweep(sweep_nr, 2)
-        self._shutter = self._abf_data.sweepY[interval[0]:interval[1]]
+        self._shutter = self._abf_data.sweepY
         self._shutter_title = 'Shutter Voltage (V)'
 
     def get_sweep_data(self):
@@ -90,27 +86,33 @@ def correct_current_via_pre_light_fit(sweep, initial_function='exponential'):
     sweep_data = sweep.get_sweep_data()
     sweep_times = sweep_data['times']
     sweep_currents = sweep_data['currents']
-    best_function,pre_light_fit_result = fit_pre_light(sweep, initial_function,make_plot=False)
+    best_function, pre_light_fit_result = fit_pre_light(sweep, initial_function, make_plot=False)
     pre_light_fit_baseline = estimate_data_with_fit(sweep_times, best_function, pre_light_fit_result)
     baseline_corrected_currents = sweep_currents - pre_light_fit_baseline
     return baseline_corrected_currents
 
 
-def correct_current_via_pre_and_after_light_fit(sweep, initial_function_pre_light='exponential',initial_function_after_light='exponential'):
+def correct_current_via_pre_and_after_light_fit(sweep, initial_function_pre_light='exponential',
+                                                initial_function_after_light='exponential'):
     sweep_data = sweep.get_sweep_data()
     sweep_times = sweep_data['times']
     sweep_currents = sweep_data['currents']
-    pre_light_best_function,pre_light_fit_result = fit_pre_light(sweep, initial_function_pre_light,make_plot=False)
+    pre_light_best_function, pre_light_fit_result = fit_pre_light(sweep, initial_function_pre_light, make_plot=False)
     pre_light_fit_baseline = estimate_data_with_fit(sweep_times, pre_light_best_function, pre_light_fit_result)
     pre_light_baseline_corrected_currents = sweep_currents - pre_light_fit_baseline
     sweep.set_corrected_currents(pre_light_baseline_corrected_currents)
-    after_light_best_function, after_light_fit_result = fit_after_light(sweep, initial_function_after_light, make_plot=False)
+    after_light_best_function, after_light_fit_result = fit_after_light(sweep, initial_function_after_light,
+                                                                        make_plot=True)
     after_light_fit_baseline = estimate_data_with_fit(sweep_times, after_light_best_function, after_light_fit_result)
     baseline_corrected_currents = sweep_currents - after_light_fit_baseline
     return baseline_corrected_currents
 
 
-def plot_sweep(sweep, corrected=False):
+def plot_sweep(sweep, plot_interval=None, corrected=False):
+    if plot_interval is None:
+        plot_interval = [0, -1]
+    else:
+        assert (type(plot_interval) == list and len(plot_interval) == 2)
     sweep_data = sweep.get_sweep_data()
     if not corrected:
         time = sweep_data['times']
@@ -125,11 +127,11 @@ def plot_sweep(sweep, corrected=False):
         current = correct_current_via_pre_and_after_light_fit(sweep)
         voltage = sweep_data['voltages']
     else:
-        raise ValueError('corrected should be bool: True / False . Is, however,',type(corrected))
+        raise ValueError('corrected should be bool: False / pre_light_only / pre_and_after_light. Is, however, ', corrected)
     fig, axs = plt.subplots(2)
-    axs[0].plot(time, current)
+    axs[0].plot(time[plot_interval[0]:plot_interval[1]], current[plot_interval[0]:plot_interval[1]])
     axs[0].set(xlabel=sweep_data['times title'], ylabel=sweep_data['currents title'])
-    axs[1].plot(time, voltage)
+    axs[1].plot(time[plot_interval[0]:plot_interval[1]], voltage[plot_interval[0]:plot_interval[1]])
     axs[1].set(xlabel=sweep_data['times title'], ylabel=sweep_data['voltages title'])
 
     for ax in axs.flat:
@@ -140,14 +142,16 @@ def plot_sweep(sweep, corrected=False):
     plt.show()
 
 
-def plot_all_sweeps(ActiveAbf, sweep_interval=None, corrected=False):
-    if sweep_interval is None:
-        sweep_interval = [0, -1]
+def plot_all_sweeps(ActiveAbf, plot_interval=None, corrected=False):
+    if plot_interval is None:
+        plot_interval = [0, -1]
+    else:
+        assert (type(plot_interval) == list and len(plot_interval) == 2)
     nr_of_sweeps = ActiveAbf.sweep_count()
     fig, axs = plt.subplots(2)
     for i in range(nr_of_sweeps):
-        sweepNumber = nr_of_sweeps -1 - i
-        sweep_interation = sweep(ActiveAbf.which_abf_file(), sweepNumber, sweep_interval)
+        sweepNumber = nr_of_sweeps - 1 - i
+        sweep_interation = sweep(ActiveAbf.which_abf_file(), sweepNumber)
         sweep_data = sweep_interation.get_sweep_data()
         if not corrected:
             time = sweep_data['times']
@@ -163,8 +167,10 @@ def plot_all_sweeps(ActiveAbf, sweep_interval=None, corrected=False):
             voltage = sweep_data['voltages']
         else:
             raise ValueError('corrected should be bool: True / False . Is, however,', type(corrected))
-        axs[0].plot(time, current, alpha=.5,label="{} mV".format(sweep_data['input clamp voltage'][round(len(sweep_data['input clamp voltage']) / 2)]))
-        axs[1].plot(time, voltage, alpha=.5)
+        axs[0].plot(time[plot_interval[0]:plot_interval[1]], current[plot_interval[0]:plot_interval[1]], alpha=.5,
+                    label="{} mV".format(sweep_data['input clamp voltage'][round(len(
+                        sweep_data['input clamp voltage']) / 2)]))
+        axs[1].plot(time[plot_interval[0]:plot_interval[1]], voltage[plot_interval[0]:plot_interval[1]], alpha=.5)
         axs[0].legend()
         if sweepNumber == 0:
             axs[0].set(xlabel=sweep_data['times title'], ylabel=sweep_data['currents title'])
@@ -174,5 +180,3 @@ def plot_all_sweeps(ActiveAbf, sweep_interval=None, corrected=False):
                 ax.grid(alpha=.2)
                 ax.axvspan(sweep_data['shutter on'], sweep_data['shutter off'], color='orange', alpha=.3, lw=0)
     plt.show()
-
-

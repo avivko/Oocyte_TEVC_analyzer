@@ -20,8 +20,11 @@ abfToAnalyze = '/home/kormanav/Dokumente/TEVC_15_11_2019/2019_11_15_0020.abf'
 
 abf = ActiveAbf(abfToAnalyze)
 sweepnr = 1
-sweep1 = sweep(abfToAnalyze, sweepnr, [400, 18000])
-plot_sweep(sweep1)
-plot_sweep(sweep1, corrected='pre_and_after_light')
+sweep1 = sweep(abfToAnalyze, sweepnr)
+plot_sweep(sweep1,plot_interval=[400,16000])
+plot_sweep(sweep1,plot_interval=[400,16000],corrected='pre_light_only')
+plot_sweep(sweep1,plot_interval=[400,16000],corrected='pre_and_after_light')
+#plot_all_sweeps(abf,plot_interval=[400,16000],corrected='pre_and_after_light')
+#plot_sweep(sweep1, corrected='pre_and_after_light')
 #plot_all_sweeps(abf,[2000, 16000])
 #plot_all_sweeps(abf,[1700, 16000],corrected='pre_and_after_light')
