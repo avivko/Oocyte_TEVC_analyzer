@@ -76,10 +76,18 @@ def plot_fit(x, y, fit_result):
     plt.show()
 
 
-def fit_linear(x, y, make_plot=False):
+def fit_linear(x, y, constrained_y0=None ,make_plot=False):
     init_m, init_y0 = guess_init_vals(x, y, 'linear')
     fit_model = Model(linear)
-    result = fit_model.fit(y, t=x, m=init_m, y0=init_y0)
+    if constrained_y0 is not None:
+        y0 = constrained_y0
+        fit_model.set_param_hint('y0', value=y0, vary=False)
+        params = fit_model.make_params(m=init_m)
+    elif constrained_y0 is None:
+        params = fit_model.make_params(y0=init_y0, m=init_m)
+    else:
+        raise ValueError('constrained_y0 should be None or a float. Is, however, a '+type(constrained_y0))
+    result = fit_model.fit(y,params, t=x)
 
     if make_plot:
         plot_fit(x, y, result)
@@ -87,20 +95,27 @@ def fit_linear(x, y, make_plot=False):
     return result
 
 
-def fit_exponential(x, y, make_plot=False):
+def fit_exponential(x, y, constrained_y0=None, make_plot=False ):
     y0, y_ss, tau = guess_init_vals(x, y, 'exponential')
     fit_model = Model(first_oder_sys_response)
     fit_model.set_param_hint('tau', value=tau, min=0, max=60)
-    params = fit_model.make_params(y0=y0, y_ss=y_ss)
+    if constrained_y0 is not None:
+        y0 = constrained_y0
+        fit_model.set_param_hint('y0', value=y0, vary=False)
+        params = fit_model.make_params(y_ss=y_ss)
+    elif constrained_y0 is None:
+        params = fit_model.make_params(y0=y0, y_ss=y_ss)
+    else:
+        raise ValueError('constrained_y0 should be None or a float. Is, however, a '+type(constrained_y0))
     result = fit_model.fit(y, params, t=x)
     if make_plot:
         plot_fit(x, y, result)
-    if result.redchi > 10:
-        warnings.warn('The reduced chi of the exponential fit is bigger than 10. Chi ='+str(result.redchi) +
+    if result.redchi > 15:
+        warnings.warn('The reduced chi of the exponential fit is bigger than 15. Chi =' + str(result.redchi) +
                       '. trying linear fit...')
         linear_result = fit_linear(x, y, make_plot=make_plot)
         if linear_result.redchi > result.redchi:
-            raise ValueError('The reduced chi of the linear fit is even worse . Chi ='+ str(result.redchi) +
+            raise ValueError('The reduced chi of the linear fit is even worse . Chi =' + str(linear_result.redchi) +
                              '. Chi of both fits is too large!. Try to begin the sweep from a later time point')
         else:
             result = linear_result
@@ -110,7 +125,8 @@ def fit_exponential(x, y, make_plot=False):
     return best_function, result
 
 
-def fit_biexponential(x, y, y0_1, y0_2, y_ss_1, y_ss_2, tau_1, tau_2, make_plot=False): #not yet fully implemented with guesser etc.
+def fit_biexponential(x, y, y0_1, y0_2, y_ss_1, y_ss_2, tau_1, tau_2,
+                      make_plot=False):  # not yet fully implemented with guesser etc.
     fit_model = Model(two_first_oder_sys_responses)
     result = fit_model.fit(y, t=x, y0_1=y0_1, y0_2=y0_2, y_ss_1=y_ss_1, y_ss_2=y_ss_2, tau_1=tau_1, tau_2=tau_2)
 
@@ -128,20 +144,51 @@ def fit_pre_light(sweep, initial_fit_type, t0=None, make_plot=True):
     sweep_data = sweep.get_sweep_data()
     sweep_times = sweep_data['times']
     sweep_currents = sweep_data['currents']
-    if t0 is None:  # if starting time for fit is not specified
-        t0 = sweep_times[0]
-        assert t0 != 0, 'the first fit should not start at t0 due to the capacitance peak'
-    recorded_t0 = get_closest_value_from_ordered_array(t0, sweep_times)
-    t0_index = get_index_of_unique_value(recorded_t0, sweep_times)
     t_light_on = sweep_data['shutter on']
     recorded_t_light_on = get_closest_value_from_ordered_array(t_light_on, sweep_times)
     t_light_on_index = get_index_of_unique_value(recorded_t_light_on, sweep_times)
+    if t0 is None:  # if starting time for fit is not specified, 1.5 s before the light will be taken
+        t0 = t_light_on - 1.5
+    assert (t0 > sweep_data['clamp on']), 'the first fit should not start before the capacitance peak: ' + str(
+        t0) + ' > ' + str(sweep_data['clamp on'])
+    assert sweep_times[0] <= t0 <= sweep_times[-1], 't0 is out of range sweep interval'
+    recorded_t0 = get_closest_value_from_ordered_array(t0, sweep_times)
+    t0_index = get_index_of_unique_value(recorded_t0, sweep_times)
+
     fit_time = sweep_times[t0_index:t_light_on_index]
     fit_current = sweep_currents[t0_index:t_light_on_index]
     if initial_fit_type == 'exponential':
         return fit_exponential(fit_time, fit_current, make_plot=make_plot)
     if initial_fit_type == 'linear':
         return fit_linear(fit_time, fit_current, make_plot=make_plot)
+    else:
+        raise NotImplementedError('this function was not implemented for the initial_fit_type:', initial_fit_type)
+
+
+def fit_after_light(sweep, initial_fit_type, t0_after=None, make_plot=True):
+    sweep_data = sweep.get_sweep_data()
+    sweep_times = sweep_data['times']
+    sweep_currents = sweep_data['currents']
+    t_light_on = sweep_data['shutter on']
+    t_light_off = sweep_data['shutter off']
+    t_clamp_off = sweep_data['clamp off']
+    recorded_t_clamp_off = get_closest_value_from_ordered_array(t_clamp_off, sweep_times)
+    t_clamp_off_index = get_index_of_unique_value(recorded_t_clamp_off, sweep_times)
+    if t0_after is None:  # if starting time for fit is not specified, 1.5 s before the clamp is off will be taken
+        t0_after = t_clamp_off - 1
+    assert (
+                t0_after > t_light_off), 'the second fit should not start before the light is off (and steady state ' \
+                                         'is achieved): ' + str( t0_after) + ' > ' + str(t_light_off)
+    assert sweep_times[0] <= t0_after <= sweep_times[-1], 't0 is out of range sweep interval'
+    recorded_t0_after = get_closest_value_from_ordered_array(t0_after, sweep_times)
+    t0_after_index = get_index_of_unique_value(recorded_t0_after, sweep_times)
+
+    fit_time = sweep_times[t0_after_index:t_clamp_off_index]
+    fit_current = sweep_currents[t0_after_index:t_clamp_off_index]
+    if initial_fit_type == 'exponential':
+        return fit_exponential(fit_time, fit_current, constrained_y0=t_light_on,make_plot=make_plot)
+    if initial_fit_type == 'linear':
+        return fit_linear(fit_time, fit_current, constrained_y0=t_light_on, make_plot=make_plot)
     else:
         raise NotImplementedError('this function was not implemented for the initial_fit_type:', initial_fit_type)
 

@@ -8,17 +8,17 @@ def truncate(n, decimals=0):
 
 def get_closest_value_from_ordered_array(value,np_array): # Gets the first one and stops there!
     assert isinstance(value, (int,float)) and isinstance(np_array, np.ndarray), 'value or array have bad type: value is {}, array is {}'.format(type(value),np_array.dtype)
-    assert np_array[0] <= value <= np_array[-1], 'value out of range of the array values'
+    assert np_array[0] <= value <= np_array[-1], 'value out of range of the array values: '+str(np_array[0])+' <= '+str(value)+' <= '+str(np_array[-1])
     last_value = None
     for i in np.nditer(np_array):
         if abs(np_array[0]) < abs(np_array[1]):
             if abs(i) > value:
-                return last_value
+                return float(last_value)
         elif abs(np_array[0]) > abs(np_array[1]):
             if abs(i) < value:
-                return last_value
+                return float(last_value)
         if i == value:
-           return value
+           return float(value)
         else:
             last_value = i
             pass

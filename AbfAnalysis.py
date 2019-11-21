@@ -41,8 +41,10 @@ class sweep(ActiveAbf):
     def __init__(self, abf_file, sweep_nr, interval=None):
         super().__init__(abf_file)
         self._abf_data.setSweep(sweep_nr)
+        self.t_clamp_on = self._abf_data.sweepEpochs.p1s[1] * self._abf_data.dataSecPerPoint
         self.t_shutter_on = self._abf_data.sweepEpochs.p1s[2] * self._abf_data.dataSecPerPoint
-        self.t_shutter_off = self._abf_data.sweepEpochs.p2s[2] * self._abf_data.dataSecPerPoint
+        self.t_shutter_off = self._abf_data.sweepEpochs.p1s[3] * self._abf_data.dataSecPerPoint
+        self.t_clamp_off = self._abf_data.sweepEpochs.p1s[4] * self._abf_data.dataSecPerPoint
         if interval is None:
             interval = [0, -1]
         else:
@@ -72,9 +74,16 @@ class sweep(ActiveAbf):
             'shutter title': self._shutter_title,
             'shutter on': self.t_shutter_on,
             'shutter off': self.t_shutter_off,
+            'clamp on': self.t_clamp_on,
+            'clamp off': self.t_clamp_off,
             'input clamp voltage': self._input_voltage,
             'input clamp voltage title': self._input_voltage_title
         }
+
+    def set_corrected_currents(self, corrected_currents):
+        assert corrected_currents.shape == self._currents.shape, 'new currents do not have the same shape as the ' \
+                                                                 'previous ones '
+        self._currents = corrected_currents
 
 
 def correct_current_via_pre_light_fit(sweep, initial_function='exponential'):
@@ -86,16 +95,34 @@ def correct_current_via_pre_light_fit(sweep, initial_function='exponential'):
     baseline_corrected_currents = sweep_currents - pre_light_fit_baseline
     return baseline_corrected_currents
 
+
+def correct_current_via_pre_and_after_light_fit(sweep, initial_function_pre_light='exponential',initial_function_after_light='exponential'):
+    sweep_data = sweep.get_sweep_data()
+    sweep_times = sweep_data['times']
+    sweep_currents = sweep_data['currents']
+    pre_light_best_function,pre_light_fit_result = fit_pre_light(sweep, initial_function_pre_light,make_plot=False)
+    pre_light_fit_baseline = estimate_data_with_fit(sweep_times, pre_light_best_function, pre_light_fit_result)
+    pre_light_baseline_corrected_currents = sweep_currents - pre_light_fit_baseline
+    sweep.set_corrected_currents(pre_light_baseline_corrected_currents)
+    after_light_best_function, after_light_fit_result = fit_after_light(sweep, initial_function_after_light, make_plot=False)
+    after_light_fit_baseline = estimate_data_with_fit(sweep_times, after_light_best_function, after_light_fit_result)
+    baseline_corrected_currents = sweep_currents - after_light_fit_baseline
+    return baseline_corrected_currents
+
+
 def plot_sweep(sweep, corrected=False):
+    sweep_data = sweep.get_sweep_data()
     if not corrected:
-        sweep_data = sweep.get_sweep_data()
         time = sweep_data['times']
         current = sweep_data['currents']
         voltage = sweep_data['voltages']
-    elif corrected:
-        sweep_data = sweep.get_sweep_data()
+    elif corrected == 'pre_light_only':
         time = sweep_data['times']
         current = correct_current_via_pre_light_fit(sweep)
+        voltage = sweep_data['voltages']
+    elif corrected == 'pre_and_after_light':
+        time = sweep_data['times']
+        current = correct_current_via_pre_and_after_light_fit(sweep)
         voltage = sweep_data['voltages']
     else:
         raise ValueError('corrected should be bool: True / False . Is, however,',type(corrected))
@@ -126,9 +153,13 @@ def plot_all_sweeps(ActiveAbf, sweep_interval=None, corrected=False):
             time = sweep_data['times']
             current = sweep_data['currents']
             voltage = sweep_data['voltages']
-        elif corrected:
+        elif corrected == 'pre_light_only':
             time = sweep_data['times']
             current = correct_current_via_pre_light_fit(sweep_interation)
+            voltage = sweep_data['voltages']
+        elif corrected == 'pre_and_after_light':
+            time = sweep_data['times']
+            current = correct_current_via_pre_and_after_light_fit(sweep_interation)
             voltage = sweep_data['voltages']
         else:
             raise ValueError('corrected should be bool: True / False . Is, however,', type(corrected))
