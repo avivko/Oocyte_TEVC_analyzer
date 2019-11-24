@@ -6,34 +6,15 @@ from lmfit import Model
 import numpy as np
 import statistics
 import warnings
-import time
 
 
 def linear(t, m, y0):
-        return m * t + y0
+    return m * t + y0
 
-
-def linear_from_zero(t, m, shift_along_t=0):
-    if shift_along_t != 0:
-        if t < shift_along_t:
-            return 0
-        if t >= shift_along_t:
-            return m * (t-shift_along_t)
-    elif shift_along_t == 0:
-        return m * t
 
 def first_oder_sys_response(t, y0, y_ss, tau):
     return (y0 - y_ss) * np.exp(-t / tau) + y_ss
 
-
-def first_oder_sys_response_from_zero(t, y_ss, tau, shift_along_t=0):
-    if shift_along_t !=0:
-        if t < shift_along_t:
-            return 0
-        if t >= shift_along_t:
-            return y_ss *(1-np.exp(-(t-shift_along_t) / tau))
-    else:
-        return y_ss *(1-np.exp(-(t) / tau))
 
 def two_first_oder_sys_responses(t, y0_1, y0_2, y_ss_1, y_ss_2, tau_1, tau_2):
     return (y0_1 - y_ss_1) * np.exp(-t / tau_1) + (y0_2 - y_ss_2) * np.exp(-t / tau_2) + y_ss_1 + y_ss_2
@@ -51,7 +32,7 @@ def guess_init_vals(x, y, function_name):
     guesses initial values for different functions
     :param x: np array of x values
     :param y: np array of x values
-    :param function_name: 'linear' / 'exponential' / 'biexponential'
+    :param function_name: 'linear' / 'exponential'
     :return: a dictionary with the initial values
     """
 
@@ -109,11 +90,11 @@ def plot_fit(x, y, fit_result):
     plt.show()
 
 
-def fit_linear(x, y ,make_plot=False):
+def fit_linear(x, y, make_plot=False):
     init_m, init_y0 = guess_init_vals(x, y, 'linear')
     fit_model = Model(linear)
     params = fit_model.make_params(y0=init_y0, m=init_m)
-    result = fit_model.fit(y,params, t=x)
+    result = fit_model.fit(y, params, t=x)
 
     if make_plot:
         plot_fit(x, y, result)
@@ -121,27 +102,28 @@ def fit_linear(x, y ,make_plot=False):
     return 'linear', result
 
 
-def fit_exponential(x, y, starting_from_0=False, first_non_zero=0, make_plot=False ):
-    if not starting_from_0:
-        fit_model = Model(first_oder_sys_response)
+def fit_exponential(x, y, fixed_y0=None, t_shift=0, make_plot=False):
+    fit_model = Model(first_oder_sys_response)
+    if fixed_y0 is None:
         y0, y_ss, tau = guess_init_vals(x, y, 'exponential')
         fit_model.set_param_hint('tau', value=tau, min=0, max=60)
         params = fit_model.make_params(y0=y0, y_ss=y_ss)
-    elif starting_from_0:
-        fit_model = Model(first_oder_sys_response_from_zero)
-        if first_non_zero == 0:
+    elif fixed_y0 is not None:
+        if t_shift == 0:
             y_ss, tau = guess_init_vals(x, y, 'exponential from zero')
             fit_model.set_param_hint('tau', value=tau, min=0, max=60)
-            params = fit_model.make_params(y_ss=y_ss, shift_along_t=0)
-        elif first_non_zero > 0:
-            first_non_zero_index = get_index_of_unique_value(first_non_zero,x)
-            y_ss, tau = guess_init_vals(x[first_non_zero_index:]-first_non_zero, y[first_non_zero_index:], 'exponential from zero')
+            fit_model.set_param_hint('y0', value=fixed_y0, vary=False)
+            params = fit_model.make_params(y_ss=y_ss)
+        elif t_shift > 0:
+            x = x - t_shift
+            y_ss, tau = guess_init_vals(x, y, 'exponential from zero')
             fit_model.set_param_hint('tau', value=tau, min=0, max=60)
-            params = fit_model.make_params(y_ss=y_ss, shift_along_t=first_non_zero)
+            fit_model.set_param_hint('y0', value=fixed_y0, vary=False)
+            params = fit_model.make_params(y_ss=y_ss)
         else:
-            raise ValueError('first_non_zero should be the time when the shutter is turned on (>= 0) but is:',str(first_non_zero))
+            raise ValueError('t_shift should be the time when the shutter is turned on (>= 0) but is:', str(t_shift))
     else:
-        raise ValueError('starting_from_0 should be True/ False. is: '+str(starting_from_0))
+        raise ValueError('starting_from_0 should be None/ the value of the fixed y0. is: ' + str(fixed_y0))
     result = fit_model.fit(y, params, t=x)
     if make_plot:
         plot_fit(x, y, result)
@@ -193,14 +175,14 @@ def fit_pre_light(sweep, initial_fit_type, t0=None, make_plot=True):
     fit_time = sweep_times[t0_index:t_light_on_index]
     fit_current = sweep_currents[t0_index:t_light_on_index]
     if initial_fit_type == 'exponential':
-        return fit_exponential(fit_time,fit_current,make_plot=make_plot)
+        return fit_exponential(fit_time, fit_current, make_plot=make_plot)
     if initial_fit_type == 'linear':
         return fit_linear(fit_time, fit_current, make_plot=make_plot)
     else:
         raise NotImplementedError('this function was not implemented for the initial_fit_type:', initial_fit_type)
 
 
-def fit_after_light(sweep, initial_fit_type, t0_after=None, make_plot=True):
+def calculate_linear_photocurrent_baseline(sweep, t_ss=None):
     sweep_data = sweep.get_sweep_data()
     sweep_times = sweep_data['times']
     sweep_currents = sweep_data['currents']
@@ -209,26 +191,37 @@ def fit_after_light(sweep, initial_fit_type, t0_after=None, make_plot=True):
     t_clamp_off = sweep_data['clamp off']
     recorded_t_clamp_off = get_closest_value_from_ordered_array(t_clamp_off, sweep_times)
     t_clamp_off_index = get_index_of_unique_value(recorded_t_clamp_off, sweep_times)
-    if t0_after is None:  # if starting time for fit is not specified, 1.5 s before the clamp is off will be taken
-        t0_after = t_clamp_off - 0.5
+    if t_ss is None:  # if starting time for fit is not specified, 1.5 s before the clamp is off will be taken
+        t_ss = t_clamp_off - 0.5
     assert (
-                t0_after > t_light_off), 'the second fit should not start before the light is off (and steady state ' \
-                                         'is achieved): ' + str( t0_after) + ' > ' + str(t_light_off)
-    assert sweep_times[0] <= t0_after <= sweep_times[-1], 't0 is out of range sweep interval'
-    recorded_t0_after = get_closest_value_from_ordered_array(t0_after, sweep_times)
-    t0_after_index = get_index_of_unique_value(recorded_t0_after, sweep_times)
+            t_ss > t_light_off), 'the steady state time point should not start before the light is off: {0} > {1}'.format(
+        str(t_ss), str(t_light_off))
+    assert sweep_times[0] <= t_ss <= sweep_times[-1], 'the steady state time is out of the range of the sweep interval'
+    recorded_t_light_on = get_closest_value_from_ordered_array(t_light_on, sweep_times)
+    t_light_on_index = get_index_of_unique_value(recorded_t_light_on, sweep_times)
+    recorded_t_ss = get_closest_value_from_ordered_array(t_ss, sweep_times)
+    t_ss_index = get_index_of_unique_value(recorded_t_ss, sweep_times)
 
-    fit_time = sweep_times[t0_after_index:t_clamp_off_index]
-    fit_current = sweep_currents[t0_after_index:t_clamp_off_index]
-    if initial_fit_type == 'exponential':
-        return fit_exponential(fit_time, fit_current,starting_from_0=True, first_non_zero=t_light_on,make_plot=make_plot)
-    if initial_fit_type == 'linear':
-        return fit_linear(fit_time, fit_current, make_plot=make_plot)
-    else:
-        raise NotImplementedError('this function was not implemented for the initial_fit_type:', initial_fit_type)
+    # before the light
+    baseline = np.zeros(len(sweep_currents))
+
+    # during the light and after
+    deltay = np.average(sweep_currents[(t_ss_index - 5):(t_ss_index + 5)])
+    deltax = recorded_t_ss - t_light_on
+    slope = deltay / deltax
+
+    t_value_index = 0
+    for t_value in sweep_times:
+        if recorded_t_light_on <= t_value <= recorded_t_ss:
+            baseline[t_value_index] = linear(t_value-recorded_t_light_on, slope, 0)
+        elif t_value > recorded_t_ss:
+            baseline[t_value_index] = linear(recorded_t_ss-recorded_t_light_on, slope, 0)
+        t_value_index += 1
+
+    return baseline
 
 
-def estimate_data_with_fit(t, function, fit_result,shift_results_by=0):
+def estimate_data_with_fit(t, function, fit_result, t_shift=0):
     fit_result_values = fit_result.best_values
     y = np.zeros(shape=t.shape)
     if function == 'exponential':
