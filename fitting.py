@@ -150,15 +150,13 @@ def fit_pre_light(sweep, initial_fit_type, t0=None, make_plot=True):
     sweep_times = sweep_data['times']
     sweep_currents = sweep_data['currents']
     t_light_on = sweep_data['shutter on']
-    recorded_t_light_on = get_closest_value_from_ordered_array(t_light_on, sweep_times)
-    t_light_on_index = get_index_of_unique_value(recorded_t_light_on, sweep_times)
+    t_light_on_index = get_index_of_closest_value(t_light_on, sweep_times)
     if t0 is None:  # if starting time for fit is not specified, 1.5 s before the light will be taken
         t0 = t_light_on - 1.5
     assert (t0 > sweep_data['clamp on']), 'the first fit should not start before the capacitance peak: ' + str(
         t0) + ' > ' + str(sweep_data['clamp on'])
     assert sweep_times[0] <= t0 <= sweep_times[-1], 't0 is out of range sweep interval'
-    recorded_t0 = get_closest_value_from_ordered_array(t0, sweep_times)
-    t0_index = get_index_of_unique_value(recorded_t0, sweep_times)
+    t0_index = get_index_of_closest_value(t0, sweep_times)
 
     fit_time = sweep_times[t0_index:t_light_on_index]
     fit_current = sweep_currents[t0_index:t_light_on_index]
@@ -177,8 +175,6 @@ def calculate_linear_photocurrent_baseline(sweep, t_ss=None):
     t_light_on = sweep_data['shutter on']
     t_light_off = sweep_data['shutter off']
     t_clamp_off = sweep_data['clamp off']
-    recorded_t_clamp_off = get_closest_value_from_ordered_array(t_clamp_off, sweep_times)
-    t_clamp_off_index = get_index_of_unique_value(recorded_t_clamp_off, sweep_times)
     if t_ss is None:  # if starting time for fit is not specified, 1.5 s before the clamp is off will be taken
         t_ss = t_clamp_off - 0.5
     assert (
@@ -186,7 +182,6 @@ def calculate_linear_photocurrent_baseline(sweep, t_ss=None):
         str(t_ss), str(t_light_off))
     assert sweep_times[0] <= t_ss <= sweep_times[-1], 'the steady state time is out of the range of the sweep interval'
     recorded_t_light_on = get_closest_value_from_ordered_array(t_light_on, sweep_times)
-    t_light_on_index = get_index_of_unique_value(recorded_t_light_on, sweep_times)
     recorded_t_ss = get_closest_value_from_ordered_array(t_ss, sweep_times)
     t_ss_index = get_index_of_unique_value(recorded_t_ss, sweep_times)
 

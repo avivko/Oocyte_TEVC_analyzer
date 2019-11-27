@@ -153,20 +153,17 @@ def get_voltage_changes(ActiveAbf):
         sweep_voltages = sweep_data['voltages']
 
         t_light_on = sweep_data['shutter on']
-        recorded_t_light_on = get_closest_value_from_ordered_array(t_light_on, sweep_times)
-        t_t_light_on_index = get_index_of_unique_value(recorded_t_light_on, sweep_times)
+        t_t_light_on_index = get_index_of_closest_value(t_light_on, sweep_times)
         avg_voltage_before_light_at_ss = np.average(sweep_voltages[t_t_light_on_index-10:t_t_light_on_index])
         avg_sweep_voltages_and_changes['before (at ss)'] = avg_voltage_before_light_at_ss
 
         t_light_off = sweep_data['shutter off']
-        recorded_t_light_off = get_closest_value_from_ordered_array(t_light_off, sweep_times)
-        t_light_off_index = get_index_of_unique_value(recorded_t_light_off, sweep_times)
+        t_light_off_index = get_index_of_closest_value(t_light_off, sweep_times)
         avg_voltage_during_light_at_ss = np.average(sweep_voltages[t_light_off_index - 10:t_light_off_index])
         avg_sweep_voltages_and_changes['during (at ss)'] = avg_voltage_during_light_at_ss
 
         t_clamp_off = sweep_data['clamp off']
-        recorded_t_clamp_off = get_closest_value_from_ordered_array(t_clamp_off, sweep_times)
-        t_clamp_off_index = get_index_of_unique_value(recorded_t_clamp_off, sweep_times)
+        t_clamp_off_index = get_index_of_closest_value(t_clamp_off, sweep_times)
         avg_voltage_after_light_at_ss = np.average(sweep_voltages[t_clamp_off_index - 10:t_clamp_off_index])
         avg_sweep_voltages_and_changes['after (at ss)'] = avg_voltage_after_light_at_ss
 

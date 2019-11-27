@@ -1,5 +1,6 @@
 from AbfAnalysis import *
 from fitting import *
+from importexport import *
 import matplotlib.pyplot as plt
 import pyabf as pyabf
 import numpy as np
@@ -8,13 +9,7 @@ import numpy as np
 
 ### fucntions ###
 
-
-#abfToAnalyze = '/home/kormanav/Dokumente/TEVC_29_10_2019/2019_10_29_0004.abf'
-# abfToAnalyze = '/home/kormanav/Dokumente/TEVC_13_11_2019/2019_11_13_0085.abf'
-# abf = ActiveAbf(abfToAnalyze)
-# plot_all_sweeps(abf, [400,6500])
-
-abfToAnalyze = '/home/kormanav/Dokumente/Messungen_Aviv/2019_11_26_0003.abf'
+abfToAnalyze = '/home/kormanav/Dokumente/Messungen_Aviv/2019_11_15_0001.abf'
 
 #abfToAnalyze = '/Volumes/Transcend/TEVC_15_11_2019/2019_11_15_0021.abf'
 
