@@ -125,36 +125,24 @@ def fit_exponential(x, y, fixed_y0=None, t_shift=0, make_plot=False):
     else:
         raise ValueError('starting_from_0 should be None/ the value of the fixed y0. is: ' + str(fixed_y0))
     result = fit_model.fit(y, params, t=x)
+    print(result.redchi)
     if make_plot:
         plot_fit(x, y, result)
     if result.redchi > 15:
         warnings.warn('The reduced chi of the exponential fit is bigger than 15. Chi =' + str(result.redchi) +
                       '. trying linear fit...')
         linear_result = fit_linear(x, y, make_plot=make_plot)
+
         if linear_result[1].redchi > result.redchi:
             raise ValueError('The reduced chi of the linear fit is even worse . Chi =' + str(linear_result[1].redchi) +
                              '. Chi of both fits is too large!. Try to begin the sweep from a later time point')
         else:
-            result = linear_result
-            best_function = 'linear'
+            print('lin fit red chi value:', linear_result[1].redchi)
+            result = linear_result[1]
+            best_function = linear_result[0]
     else:
         best_function = 'exponential'
     return best_function, result
-
-
-def fit_biexponential(x, y, y0_1, y0_2, y_ss_1, y_ss_2, tau_1, tau_2,
-                      make_plot=False):  # not yet fully implemented with guesser etc.
-    fit_model = Model(two_first_oder_sys_responses)
-    result = fit_model.fit(y, t=x, y0_1=y0_1, y0_2=y0_2, y_ss_1=y_ss_1, y_ss_2=y_ss_2, tau_1=tau_1, tau_2=tau_2)
-
-    if make_plot:
-        print(result.fit_report())
-        plt.plot(x, y, 'bo')
-        plt.plot(x, result.best_fit, 'r-', label='best fit')
-        plt.legend(loc='best')
-        plt.show()
-
-    return result
 
 
 def fit_pre_light(sweep, initial_fit_type, t0=None, make_plot=True):
@@ -221,7 +209,7 @@ def calculate_linear_photocurrent_baseline(sweep, t_ss=None):
     return baseline
 
 
-def estimate_data_with_fit(t, function, fit_result, t_shift=0):
+def estimate_data_with_fit(t, function, fit_result):
     fit_result_values = fit_result.best_values
     y = np.zeros(shape=t.shape)
     if function == 'exponential':

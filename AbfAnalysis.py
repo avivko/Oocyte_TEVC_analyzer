@@ -141,6 +141,44 @@ def plot_sweep(sweep, plot_interval=None, corrected=False):
     plt.show()
 
 
+def get_voltage_changes(ActiveAbf):
+    avg_voltages_and_their_changes = {}
+    nr_of_sweeps = ActiveAbf.sweep_count()
+    for i in range(nr_of_sweeps):
+        avg_sweep_voltages_and_changes = {}
+        sweep_number = nr_of_sweeps - 1 - i
+        sweep_interation = sweep(ActiveAbf.which_abf_file(), sweep_number)
+        sweep_data = sweep_interation.get_sweep_data()
+        sweep_times = sweep_data['times']
+        sweep_voltages = sweep_data['voltages']
+
+        t_light_on = sweep_data['shutter on']
+        recorded_t_light_on = get_closest_value_from_ordered_array(t_light_on, sweep_times)
+        t_t_light_on_index = get_index_of_unique_value(recorded_t_light_on, sweep_times)
+        avg_voltage_before_light_at_ss = np.average(sweep_voltages[t_t_light_on_index-10:t_t_light_on_index])
+        avg_sweep_voltages_and_changes['before (at ss)'] = avg_voltage_before_light_at_ss
+
+        t_light_off = sweep_data['shutter off']
+        recorded_t_light_off = get_closest_value_from_ordered_array(t_light_off, sweep_times)
+        t_light_off_index = get_index_of_unique_value(recorded_t_light_off, sweep_times)
+        avg_voltage_during_light_at_ss = np.average(sweep_voltages[t_light_off_index - 10:t_light_off_index])
+        avg_sweep_voltages_and_changes['during (at ss)'] = avg_voltage_during_light_at_ss
+
+        t_clamp_off = sweep_data['clamp off']
+        recorded_t_clamp_off = get_closest_value_from_ordered_array(t_clamp_off, sweep_times)
+        t_clamp_off_index = get_index_of_unique_value(recorded_t_clamp_off, sweep_times)
+        avg_voltage_after_light_at_ss = np.average(sweep_voltages[t_clamp_off_index - 10:t_clamp_off_index])
+        avg_sweep_voltages_and_changes['after (at ss)'] = avg_voltage_after_light_at_ss
+
+        delta_before_and_during_light = abs(avg_voltage_during_light_at_ss-avg_voltage_before_light_at_ss)
+        avg_sweep_voltages_and_changes['delta(before,during)'] = delta_before_and_during_light
+        delta_before_and_after_light = abs(avg_voltage_after_light_at_ss-avg_voltage_before_light_at_ss)
+        avg_sweep_voltages_and_changes['delta(before,after)'] = delta_before_and_after_light
+        avg_voltages_and_their_changes['sweep'+str(sweep_number)] = avg_sweep_voltages_and_changes
+
+    return avg_voltages_and_their_changes
+
+
 def plot_all_sweeps(ActiveAbf, plot_interval=None, corrected=False):
     if plot_interval is None:
         plot_interval = [0, -1]
@@ -149,8 +187,8 @@ def plot_all_sweeps(ActiveAbf, plot_interval=None, corrected=False):
     nr_of_sweeps = ActiveAbf.sweep_count()
     fig, axs = plt.subplots(2)
     for i in range(nr_of_sweeps):
-        sweepNumber = nr_of_sweeps - 1 - i
-        sweep_interation = sweep(ActiveAbf.which_abf_file(), sweepNumber)
+        sweep_number = nr_of_sweeps - 1 - i
+        sweep_interation = sweep(ActiveAbf.which_abf_file(), sweep_number)
         sweep_data = sweep_interation.get_sweep_data()
         if not corrected:
             time = sweep_data['times']
@@ -171,7 +209,7 @@ def plot_all_sweeps(ActiveAbf, plot_interval=None, corrected=False):
                         sweep_data['input clamp voltage']) / 2)]))
         axs[1].plot(time[plot_interval[0]:plot_interval[1]], voltage[plot_interval[0]:plot_interval[1]], alpha=.5)
         axs[0].legend()
-        if sweepNumber == 0:
+        if sweep_number == 0:
             axs[0].set(xlabel=sweep_data['times title'], ylabel=sweep_data['currents title'])
             axs[1].set(xlabel=sweep_data['times title'], ylabel=sweep_data['voltages title'])
             for ax in axs.flat:
