@@ -9,19 +9,22 @@ import numpy as np
 
 ### fucntions ###
 
-abfToAnalyze = '/home/kormanav/Dokumente/Messungen_Aviv/2019_11_15_0001.abf'
+abfToAnalyze = '/Volumes/PENDISK/bsp_messungen/2019_10_29_0003.abf'
+folderToAnalyze = '/Volumes/PENDISK/bsp_messungen/'
 
-#abfToAnalyze = '/Volumes/Transcend/TEVC_15_11_2019/2019_11_15_0021.abf'
+imported_abfs = import_abfs_from_dic(folderToAnalyze)
+imported_single_abf = import_single_abf(abfToAnalyze)
 
-abf = ActiveAbf(abfToAnalyze)
+
 sweepnr = 6
-sweep1 = sweep(abfToAnalyze, sweepnr)
+sweep1 = sweep(imported_single_abf.which_abf_file(), sweepnr)
+print(sweep1.t_shutter_on)
 plotInterval = [2000, 16600]
-plot_sweep(sweep1, plot_interval=plotInterval)
-plot_all_sweeps(abf, plot_interval=plotInterval)
-plot_all_sweeps(abf, plot_interval=plotInterval, corrected='pre_light_only')
-plot_all_sweeps(abf, plot_interval=plotInterval, corrected='pre_and_after_light')
-print(get_voltage_changes(abf))
+# plot_sweep(sweep1, plot_interval=plotInterval)
+# plot_all_sweeps(abf, plot_interval=plotInterval)
+# plot_all_sweeps(abf, plot_interval=plotInterval, corrected='pre_light_only')
+# plot_all_sweeps(abf, plot_interval=plotInterval, corrected='pre_and_after_light')
+# print(get_voltage_changes(abf))
 #plot_sweep(sweep1, corrected='pre_and_after_light')
 #plot_all_sweeps(abf,[2000, 16000])
 #plot_all_sweeps(abf,[1700, 16000],corrected='pre_and_after_light')
