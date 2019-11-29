@@ -87,7 +87,7 @@ def plot_fit(x, y, fit_result):
     handles.append(
         mpatches.Patch(color='none', label='R^2 = ' + str(truncate(get_r_squared_from_fit_results(fit_result), 2))))
     ax.legend(handles=handles)
-    plt.show()
+
 
 
 def fit_linear(x, y, make_plot=False):
@@ -104,6 +104,7 @@ def fit_linear(x, y, make_plot=False):
 
 def fit_exponential(x, y, fixed_y0=None, t_shift=0, make_plot=False):
     fit_model = Model(first_oder_sys_response)
+
     if fixed_y0 is None:
         y0, y_ss, tau = guess_init_vals(x, y, 'exponential')
         fit_model.set_param_hint('tau', value=tau, min=0, max=60)
@@ -146,15 +147,14 @@ def fit_exponential(x, y, fixed_y0=None, t_shift=0, make_plot=False):
 
 
 def fit_pre_light(sweep, initial_fit_type, t0=None, make_plot=True):
-    sweep_data = sweep.get_sweep_data()
-    sweep_times = sweep_data['times']
-    sweep_currents = sweep_data['currents']
-    t_light_on = sweep_data['shutter on']
+    sweep_times = sweep.times
+    sweep_currents = sweep.currents
+    t_light_on = sweep.t_shutter_on
     t_light_on_index = get_index_of_closest_value(t_light_on, sweep_times)
     if t0 is None:  # if starting time for fit is not specified, 1.5 s before the light will be taken
         t0 = t_light_on - 1.5
-    assert (t0 > sweep_data['clamp on']), 'the first fit should not start before the capacitance peak: ' + str(
-        t0) + ' > ' + str(sweep_data['clamp on'])
+    assert (t0 > sweep.t_clamp_on), 'the first fit should not start before the capacitance peak: ' + str(
+        t0) + ' > ' + str(sweep.t_clamp_on)
     assert sweep_times[0] <= t0 <= sweep_times[-1], 't0 is out of range sweep interval'
     t0_index = get_index_of_closest_value(t0, sweep_times)
 
@@ -168,15 +168,37 @@ def fit_pre_light(sweep, initial_fit_type, t0=None, make_plot=True):
         raise NotImplementedError('this function was not implemented for the initial_fit_type:', initial_fit_type)
 
 
-def calculate_linear_photocurrent_baseline(sweep, t_ss=None):
-    sweep_data = sweep.get_sweep_data()
-    sweep_times = sweep_data['times']
-    sweep_currents = sweep_data['currents']
-    t_light_on = sweep_data['shutter on']
-    t_light_off = sweep_data['shutter off']
-    t_clamp_off = sweep_data['clamp off']
-    if t_ss is None:  # if starting time for fit is not specified, 1.5 s before the clamp is off will be taken
-        t_ss = t_clamp_off - 0.5
+def fit_also_after_light(sweep, initial_fit_type, t_ss, make_plot=True, fit_only_close_to_t_ss=False):
+    sweep_times = sweep.times
+    sweep_currents = sweep.currents
+    t_light_off = sweep.t_shutter_off
+    t_clamp_off = sweep.t_clamp_off
+    if fit_only_close_to_t_ss:
+        t_end_fit = (t_clamp_off+t_light_off)/2
+    else:
+        t_end_fit = t_clamp_off - 0.01
+
+    t_end_fit_index = get_index_of_closest_value(t_end_fit, sweep_times)
+    t_ss_index = get_index_of_closest_value(t_ss, sweep_times)
+
+    fit_time = sweep_times[t_ss_index:t_end_fit_index]
+    fit_current = sweep_currents[t_ss_index:t_end_fit_index]
+    if initial_fit_type == 'exponential':
+        return fit_time,fit_exponential(fit_time, fit_current, make_plot=False)
+    if initial_fit_type == 'linear':
+        return fit_time,fit_linear(fit_time, fit_current, make_plot=False)
+    else:
+        raise NotImplementedError('this function was not implemented for the initial_fit_type:', initial_fit_type)
+
+
+def calculate_linear_photocurrent_baseline(sweep, t_ss=None, fit_also_after_t_ss=True):
+    sweep_times = sweep.times
+    sweep_currents = sweep.currents
+    t_light_on = sweep.t_shutter_on
+    t_light_off = sweep.t_shutter_off
+    t_clamp_off = sweep.t_clamp_off
+    if t_ss is None:  # if starting time for fit is not specified, taking 0.5 after light as no more photocurrents time
+        t_ss = t_light_off + 0.5
     assert (
             t_ss > t_light_off), 'the steady state time point should not start before the light is off: {0} > {1}'.format(
         str(t_ss), str(t_light_off))
@@ -201,6 +223,15 @@ def calculate_linear_photocurrent_baseline(sweep, t_ss=None):
             baseline[t_value_index] = linear(recorded_t_ss-recorded_t_light_on, slope, 0)
         t_value_index += 1
 
+
+    if fit_also_after_t_ss:
+        fit_times, fit_results = fit_also_after_light(sweep, 'exponential', t_ss)
+        estimated_currents_after_t_ss_via_fit=estimate_data_with_fit(fit_times,fit_results[0],fit_results[1])
+        baseline_shaped_est_currents= np.zeros(shape=sweep_times.shape)
+        for i in range(len(estimated_currents_after_t_ss_via_fit)):
+            baseline_shaped_est_currents[t_ss_index+i] = estimated_currents_after_t_ss_via_fit[i] - estimated_currents_after_t_ss_via_fit[0]
+        baseline += baseline_shaped_est_currents
+    #plt.plot(sweep_times, baseline) # plot to view the correction baseline
     return baseline
 
 
