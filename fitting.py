@@ -77,7 +77,7 @@ def guess_init_vals(x, y, function_name):
 
 def plot_fit(x, y, fit_result):
     print(fit_result.fit_report())
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(1)
     ax.plot(x, y, 'bo')
     ax.plot(x, fit_result.init_fit, 'k--', label='initial fit')
     ax.plot(x, fit_result.best_fit, 'r-', label='best fit')
@@ -126,7 +126,6 @@ def fit_exponential(x, y, fixed_y0=None, t_shift=0, make_plot=False):
     else:
         raise ValueError('starting_from_0 should be None/ the value of the fixed y0. is: ' + str(fixed_y0))
     result = fit_model.fit(y, params, t=x)
-    print(result.redchi)
     if make_plot:
         plot_fit(x, y, result)
     if result.redchi > 15:
@@ -138,7 +137,9 @@ def fit_exponential(x, y, fixed_y0=None, t_shift=0, make_plot=False):
             raise ValueError('The reduced chi of the linear fit is even worse . Chi =' + str(linear_result[1].redchi) +
                              '. Chi of both fits is too large!. Try to begin the sweep from a later time point')
         else:
-            print('lin fit red chi value:', linear_result[1].redchi)
+            if linear_result[1].redchi > 15:
+                warnings.warn('The reduced chi of the linear fit is still bigger than 15. Chi =' + str(linear_result[1].redchi) +
+                              '. Make sure to look if the plot makes sense')
             result = linear_result[1]
             best_function = linear_result[0]
     else:
@@ -168,7 +169,7 @@ def fit_pre_light(sweep, initial_fit_type, t0=None, make_plot=True):
         raise NotImplementedError('this function was not implemented for the initial_fit_type:', initial_fit_type)
 
 
-def fit_also_after_light(sweep, initial_fit_type, t_ss, make_plot=True, fit_only_close_to_t_ss=False):
+def fit_also_after_light(sweep, initial_fit_type, t_ss, make_plot=False, fit_only_close_to_t_ss=False):
     sweep_times = sweep.times
     sweep_currents = sweep.currents
     t_light_off = sweep.t_shutter_off
@@ -184,14 +185,14 @@ def fit_also_after_light(sweep, initial_fit_type, t_ss, make_plot=True, fit_only
     fit_time = sweep_times[t_ss_index:t_end_fit_index]
     fit_current = sweep_currents[t_ss_index:t_end_fit_index]
     if initial_fit_type == 'exponential':
-        return fit_time,fit_exponential(fit_time, fit_current, make_plot=False)
+        return fit_time,fit_exponential(fit_time, fit_current, make_plot=make_plot)
     if initial_fit_type == 'linear':
-        return fit_time,fit_linear(fit_time, fit_current, make_plot=False)
+        return fit_time,fit_linear(fit_time, fit_current, make_plot=make_plot)
     else:
         raise NotImplementedError('this function was not implemented for the initial_fit_type:', initial_fit_type)
 
 
-def calculate_linear_photocurrent_baseline(sweep, t_ss=None, fit_also_after_t_ss=True):
+def calculate_linear_photocurrent_baseline(sweep, t_ss=None, fit_also_after_t_ss=True, fit_after_function='exponential'):
     sweep_times = sweep.times
     sweep_currents = sweep.currents
     t_light_on = sweep.t_shutter_on
@@ -200,8 +201,9 @@ def calculate_linear_photocurrent_baseline(sweep, t_ss=None, fit_also_after_t_ss
     if t_ss is None:  # if starting time for fit is not specified, taking 0.5 after light as no more photocurrents time
         t_ss = t_light_off + 0.5
     assert (
-            t_ss > t_light_off), 'the steady state time point should not start before the light is off: {0} > {1}'.format(
-        str(t_ss), str(t_light_off))
+        t_light_off < t_ss < t_clamp_off), 'the steady state time point should not start before the light is off and ' \
+                                           'not after the voltage clamp is off: {0} < {1} < {2}'.format(
+        str(t_light_off), str(t_ss), str(t_clamp_off))
     assert sweep_times[0] <= t_ss <= sweep_times[-1], 'the steady state time is out of the range of the sweep interval'
     recorded_t_light_on = get_closest_value_from_ordered_array(t_light_on, sweep_times)
     recorded_t_ss = get_closest_value_from_ordered_array(t_ss, sweep_times)
@@ -225,7 +227,7 @@ def calculate_linear_photocurrent_baseline(sweep, t_ss=None, fit_also_after_t_ss
 
 
     if fit_also_after_t_ss:
-        fit_times, fit_results = fit_also_after_light(sweep, 'exponential', t_ss)
+        fit_times, fit_results = fit_also_after_light(sweep, fit_after_function, t_ss)
         estimated_currents_after_t_ss_via_fit=estimate_data_with_fit(fit_times,fit_results[0],fit_results[1])
         baseline_shaped_est_currents= np.zeros(shape=sweep_times.shape)
         for i in range(len(estimated_currents_after_t_ss_via_fit)):

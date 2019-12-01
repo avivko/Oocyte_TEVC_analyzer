@@ -10,10 +10,9 @@ def import_single_abf(abf_path):
     return ActiveAbf(abf_path)
 
 
-
-def import_abfs_from_dic(folder_path, file_name_pattern='*'):
+def import_abfs_from_dic(folder_path, file_name_pattern='*.abf'):
     folder_path_as_object = Path(folder_path)
-    assert folder_path_as_object.is_dir(), 'The given path seems to be invalid (not a directory); given path : {} '\
+    assert folder_path_as_object.is_dir(), 'The given path seems to be invalid (not a directory); given path : {} ' \
         .format(folder_path_as_object)
     list_of_abfs = glob.glob(folder_path + file_name_pattern)
     assert list_of_abfs, 'No files were found in the path {} '.format(folder_path)

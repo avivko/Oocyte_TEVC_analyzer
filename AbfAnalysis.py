@@ -1,6 +1,9 @@
 import matplotlib.pyplot as plt
 import pyabf as pyabf
 import numpy as np
+import os
+from pathlib import Path
+import pandas
 from fitting import *
 
 
@@ -41,10 +44,14 @@ class sweep(ActiveAbf):
     def __init__(self, abf_file, sweep_nr):
         super().__init__(abf_file)
         self.abf_data.setSweep(sweep_nr)
+        self.sweep_nr = sweep_nr
         self.t_clamp_on = self.abf_data.sweepEpochs.p1s[1] * self.abf_data.dataSecPerPoint
         self.t_shutter_on = self.abf_data.sweepEpochs.p1s[2] * self.abf_data.dataSecPerPoint
         self.t_shutter_off = self.abf_data.sweepEpochs.p1s[3] * self.abf_data.dataSecPerPoint
         self.t_clamp_off = self.abf_data.sweepEpochs.p1s[4] * self.abf_data.dataSecPerPoint
+        self.original_currents = self.abf_data.sweepY
+        self.currents_are_corrected = False
+        self.correction_type = None
         self.currents = self.abf_data.sweepY
         self.currents_title = self.abf_data.sweepLabelY
         self.times = self.abf_data.sweepX
@@ -60,6 +67,7 @@ class sweep(ActiveAbf):
 
     def get_sweep_data(self):
         return {
+            'sweep nr': self.sweep_nr,
             'currents': self.currents,
             'currents title': self.currents_title,
             'times': self.times,
@@ -76,10 +84,12 @@ class sweep(ActiveAbf):
             'input clamp voltage title': self.input_voltage_title
         }
 
-    def set_corrected_currents(self, corrected_currents):
+    def set_corrected_currents(self, corrected_currents, correction_type):
         assert corrected_currents.shape == self.currents.shape, 'new currents do not have the same shape as the ' \
-                                                                 'previous ones '
+                                                                'previous ones '
         self.currents = corrected_currents
+        self.currents_are_corrected = True
+        self.correction_type = correction_type
 
 
 def correct_current_via_pre_light_fit(sweep, initial_function='exponential'):
@@ -88,25 +98,22 @@ def correct_current_via_pre_light_fit(sweep, initial_function='exponential'):
     best_function, pre_light_fit_result = fit_pre_light(sweep, initial_function, make_plot=False)
     pre_light_fit_baseline = estimate_data_with_fit(sweep_times, best_function, pre_light_fit_result)
     baseline_corrected_currents = sweep_currents - pre_light_fit_baseline
+    sweep.set_corrected_currents(baseline_corrected_currents,'pre_light_only')
     return baseline_corrected_currents
 
 
-def correct_current_via_linear_baseline(sweep, initial_function_pre_light='exponential'):
-    sweep_times = sweep.times
-    sweep_currents = sweep.currents
-    pre_light_best_function, pre_light_fit_result = fit_pre_light(sweep, initial_function_pre_light, make_plot=False)
-    pre_light_fit_baseline = estimate_data_with_fit(sweep_times, pre_light_best_function, pre_light_fit_result)
-    pre_light_baseline_corrected_currents = sweep_currents - pre_light_fit_baseline
-    sweep.set_corrected_currents(pre_light_baseline_corrected_currents)
-    linear_light_baseline = calculate_linear_photocurrent_baseline(sweep)
+def correct_current_via_linear_baseline(sweep, initial_function_pre_light='exponential', initial_function_after_light='exponential'):
+    correct_current_via_pre_light_fit(sweep, initial_function=initial_function_pre_light)
+    linear_light_baseline = calculate_linear_photocurrent_baseline(sweep, fit_after_function=initial_function_after_light)
     sweep_currents = sweep.currents
     baseline_corrected_currents = sweep_currents - linear_light_baseline
+    sweep.set_corrected_currents(baseline_corrected_currents,'pre_and_after_light')
     return baseline_corrected_currents
 
 
 def auto_interval_to_plot(sweep):
-    t_start = sweep.t_shutter_on-1
-    t_end = sweep.t_shutter_off+1
+    t_start = sweep.t_shutter_on - 1
+    t_end = sweep.t_shutter_off + 1
     if (t_start < sweep.t_clamp_on) or (t_end > sweep.t_clamp_off):
         t_start = sweep.t_shutter_on - 0.5
         t_end = sweep.t_shutter_off + 0.5
@@ -116,25 +123,29 @@ def auto_interval_to_plot(sweep):
     return first_element, last_element
 
 
-def plot_sweep(sweep, plot_interval=None, corrected=False):
+def correct_currents(sweep, correction):
+    if correction == 'pre_light_only':
+        corrected_currents = correct_current_via_pre_light_fit(sweep)
+    elif correction == 'pre_and_after_light':
+        corrected_currents = correct_current_via_linear_baseline(sweep)
+    else:
+        raise ValueError('corrected should pre_light_only / pre_and_after_light. Is, however, ' + correction)
+    return corrected_currents
+
+
+def plot_sweep(sweep, show_plot=True ,plot_interval=None, correction=None, save_fig=False):
     if plot_interval is None:
         plot_interval = auto_interval_to_plot(sweep)
     else:
         assert (type(plot_interval) == list and len(plot_interval) == 2)
-    if not corrected:
-        sweep_time = sweep.times
+    sweep_time = sweep.times
+    sweep_voltage = sweep.voltages
+    if correction is None:
         sweep_current = sweep.currents
-        sweep_voltage = sweep.voltages
-    elif corrected == 'pre_light_only':
-        sweep_time = sweep.times
-        sweep_current = correct_current_via_pre_light_fit(sweep)
-        sweep_voltage = sweep.voltages
-    elif corrected == 'pre_and_after_light':
-        sweep_time = sweep.times
-        sweep_current = correct_current_via_linear_baseline(sweep)
-        sweep_voltage = sweep.voltages
+    elif correction == 'pre_light_only' or 'pre_and_after_light':
+        sweep_current = correct_currents(sweep, correction)
     else:
-        raise ValueError('corrected should be bool: False / pre_light_only / pre_and_after_light. Is, however, ', corrected)
+        raise ValueError('corrected should be None / pre_light_only / pre_and_after_light. Is, however, '+correction)
     fig, axs = plt.subplots(2)
     axs[0].plot(sweep_time[plot_interval[0]:plot_interval[1]], sweep_current[plot_interval[0]:plot_interval[1]])
     axs[0].set(xlabel=sweep.times_title, ylabel=sweep.currents_title)
@@ -146,7 +157,15 @@ def plot_sweep(sweep, plot_interval=None, corrected=False):
         ax.grid(alpha=.2)
         ax.axvspan(sweep.t_shutter_on, sweep.t_shutter_off, color='orange', alpha=.3, lw=0)
 
-    plt.show()
+    if show_plot:
+        plt.show()
+
+    if save_fig:
+        save_to_path = Path(sweep.which_abf_file())
+        analysis_results_folder = Path(str(save_to_path.parent) + '/analysis_results/')
+        Path.mkdir(analysis_results_folder, exist_ok=True)
+        fig.savefig(
+            str(analysis_results_folder) + '/' + str(save_to_path.stem) + '_sweep_' + str(sweep.sweep_nr) + '_plot.pdf')
 
 
 def get_voltage_changes(ActiveAbf):
@@ -161,7 +180,7 @@ def get_voltage_changes(ActiveAbf):
 
         t_light_on = sweep_interation.t_shutter_on
         t_t_light_on_index = get_index_of_closest_value(t_light_on, sweep_times)
-        avg_voltage_before_light_at_ss = np.average(sweep_voltages[t_t_light_on_index-10:t_t_light_on_index])
+        avg_voltage_before_light_at_ss = np.average(sweep_voltages[t_t_light_on_index - 10:t_t_light_on_index])
         avg_sweep_voltages_and_changes['before (at ss)'] = avg_voltage_before_light_at_ss
 
         t_light_off = sweep_interation.t_shutter_off
@@ -174,47 +193,53 @@ def get_voltage_changes(ActiveAbf):
         avg_voltage_after_light_at_ss = np.average(sweep_voltages[t_clamp_off_index - 10:t_clamp_off_index])
         avg_sweep_voltages_and_changes['after (at ss)'] = avg_voltage_after_light_at_ss
 
-        delta_before_and_during_light = abs(avg_voltage_during_light_at_ss-avg_voltage_before_light_at_ss)
+        delta_before_and_during_light = abs(avg_voltage_during_light_at_ss - avg_voltage_before_light_at_ss)
         avg_sweep_voltages_and_changes['delta(before,during)'] = delta_before_and_during_light
-        delta_before_and_after_light = abs(avg_voltage_after_light_at_ss-avg_voltage_before_light_at_ss)
+        delta_before_and_after_light = abs(avg_voltage_after_light_at_ss - avg_voltage_before_light_at_ss)
         avg_sweep_voltages_and_changes['delta(before,after)'] = delta_before_and_after_light
-        avg_voltages_and_their_changes['sweep'+str(sweep_number)] = avg_sweep_voltages_and_changes
+        avg_voltages_and_their_changes['sweep' + str(sweep_number)] = avg_sweep_voltages_and_changes
 
     return avg_voltages_and_their_changes
 
 
-def plot_all_sweeps(ActiveAbf, plot_interval=None, corrected=False):
+def plot_all_sweeps(active_abf, show_plot=True, plot_interval=None, correction=None, save_fig=False):
     if plot_interval is None:
-        first_sweep = sweep(ActiveAbf.which_abf_file(), 1)
+        first_sweep = sweep(active_abf.which_abf_file(), 1)
         plot_interval = auto_interval_to_plot(first_sweep)
     else:
         assert (type(plot_interval) == list and len(plot_interval) == 2)
-    nr_of_sweeps = ActiveAbf.sweep_count()
+    nr_of_sweeps = active_abf.sweep_count()
     fig, ax = plt.subplots(1)
     for i in range(nr_of_sweeps):
         sweep_number = nr_of_sweeps - 1 - i
-        sweep_interation = sweep(ActiveAbf.which_abf_file(), sweep_number)
-        if not corrected:
-            time = sweep_interation.times
+        sweep_interation = sweep(active_abf.which_abf_file(), sweep_number)
+        time = sweep_interation.times
+        if correction is None:
             current = sweep_interation.currents
-            voltage = sweep_interation.voltages
-        elif corrected == 'pre_light_only':
-            time = sweep_interation.times
-            current = correct_current_via_pre_light_fit(sweep_interation)
-            voltage = sweep_interation.voltages
-        elif corrected == 'pre_and_after_light':
-            time =  sweep_interation.times
-            current = correct_current_via_linear_baseline(sweep_interation)
-            voltage = sweep_interation.voltages
+        elif correction == 'pre_light_only' or 'pre_and_after_light':
+            current = correct_currents(sweep_interation, correction)
         else:
-            raise ValueError('corrected should be bool: True / False . Is, however,', type(corrected))
+            raise ValueError(
+                'corrected should be None / pre_light_only / pre_and_after_light. Is, however, ' + correction)
         ax.plot(time[plot_interval[0]:plot_interval[1]], current[plot_interval[0]:plot_interval[1]], alpha=.5,
-                    label="{} mV".format(sweep_interation.input_voltage[round(len(
-                        sweep_interation.input_voltage) / 2)]))
+                label="{} mV".format(sweep_interation.input_voltage[round(len(
+                    sweep_interation.input_voltage) / 2)]))
         ax.legend(loc='upper left', prop={'size': 8})
         if sweep_number == 0:
             ax.set(xlabel=sweep_interation.times_title, ylabel=sweep_interation.currents_title)
             ax.label_outer()  # Hide x labels and tick labels for top plots and y ticks for right plots.
             ax.grid(alpha=.2)
             ax.axvspan(sweep_interation.t_shutter_on, sweep_interation.t_shutter_off, color='orange', alpha=.3, lw=0)
-    plt.show()
+
+    if show_plot:
+        plt.show()
+
+
+    if save_fig:
+        save_to_path = Path(active_abf.which_abf_file())
+        analysis_results_folder = Path(str(save_to_path.parent) + '/analysis_results/')
+        Path.mkdir(analysis_results_folder, exist_ok=True)
+        if correction is None:
+            fig.savefig(str(analysis_results_folder) + '/' + str(save_to_path.stem) + '_all_sweeps_not_corrected_plot.pdf')
+        else:
+            fig.savefig(str(analysis_results_folder) + '/' + str(save_to_path.stem) + '_all_sweeps_corrected_' + correction + '_plot.pdf')
