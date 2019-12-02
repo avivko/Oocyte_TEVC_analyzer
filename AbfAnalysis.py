@@ -3,7 +3,7 @@ import pyabf as pyabf
 import numpy as np
 import os
 from pathlib import Path
-import pandas
+from pandas import DataFrame
 from fitting import *
 
 
@@ -100,6 +100,22 @@ class ActiveAbf:
         self.sweep_list['sweep'+str(sweep_num)] = returned_sweep
         return returned_sweep
 
+    def make_output_folder(self):
+        analysis_results_folder = Path(str(Path(self.which_abf_file()).parent) + '/analysis_results/')
+        Path.mkdir(analysis_results_folder, exist_ok=True)
+        return analysis_results_folder
+
+    def export_analyzed_abf_data_to_csv(self):
+        currents_data = {"sweep_time_point[sec]": self.sweep_list["sweep1"].times}
+        for i in range(self._nr_of_sweeps):
+            sweep_in_abf = self.sweep_list["sweep"+str(i)]
+            currents_data["sweep" + str(i) + "_uncorrected_current[nA]"] = sweep_in_abf.original_currents
+            currents_data["sweep" + str(i) + "_corrected_current[A]"] = sweep_in_abf.currents
+
+        currents_df = DataFrame(currents_data, columns=currents_data.keys())
+        output_folder = self.make_output_folder()
+        print(currents_df)
+        currents_csv = currents_df.to_csv(str(output_folder)+'/currents.csv', index=None, header=True)
 
 class sweep(ActiveAbf):
     def __init__(self, abf_file, sweep_nr):
@@ -222,11 +238,10 @@ def plot_sweep(sweep, show_plot=True ,plot_interval=None, correction=None, save_
         plt.show()
 
     if save_fig:
-        save_to_path = Path(sweep.which_abf_file())
-        analysis_results_folder = Path(str(save_to_path.parent) + '/analysis_results/')
-        Path.mkdir(analysis_results_folder, exist_ok=True)
+        sweep_path = Path(sweep.which_abf_file())
+        analysis_results_folder = sweep.make_output_folder()
         fig.savefig(
-            str(analysis_results_folder) + '/' + str(save_to_path.stem) + '_sweep_' + str(sweep.sweep_nr) + '_plot.pdf')
+            str(analysis_results_folder) + '/' + str(sweep_path.stem) + '_sweep_' + str(sweep.sweep_nr) + '_plot.pdf')
 
 
 def plot_all_sweeps(active_abf, show_plot=True, plot_interval=None, correction=None, save_fig=False):
@@ -262,11 +277,10 @@ def plot_all_sweeps(active_abf, show_plot=True, plot_interval=None, correction=N
         plt.show()
 
     if save_fig:
-        save_to_path = Path(active_abf.which_abf_file())
-        analysis_results_folder = Path(str(save_to_path.parent) + '/analysis_results/')
-        Path.mkdir(analysis_results_folder, exist_ok=True)
+        abf_path = Path(active_abf.which_abf_file())
+        analysis_results_folder = active_abf.make_output_folder()
         if correction is None:
-            fig.savefig(str(analysis_results_folder) + '/' + str(save_to_path.stem) + '_all_sweeps_not_corrected_plot.pdf')
+            fig.savefig(str(analysis_results_folder) + '/' + str(abf_path.stem) + '_all_sweeps_not_corrected_plot.pdf')
         else:
-            fig.savefig(str(analysis_results_folder) + '/' + str(save_to_path.stem) + '_all_sweeps_corrected_' + correction + '_plot.pdf')
+            fig.savefig(str(analysis_results_folder) + '/' + str(abf_path.stem) + '_all_sweeps_corrected_' + correction + '_plot.pdf')
 

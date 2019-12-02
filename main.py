@@ -22,5 +22,6 @@ for i in imported_abfs:
     plot_all_sweeps(i,save_fig=True)
     plot_all_sweeps(i, correction='pre_light_only',save_fig=True)
     plot_all_sweeps(i, correction='pre_and_after_light',save_fig=True)
+    i.export_analyzed_abf_data_to_csv()
     # print(get_voltage_changes(imported_single_abf))
 
