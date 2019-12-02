@@ -17,8 +17,8 @@ imported_single_abf = import_single_abf(abfToAnalyze)
 
 for i in imported_abfs:
     sweepnr = 6
-#   sweep1 = sweep(i.which_abf_file(), sweepnr)
-#   plot_sweep(sweep1,save_fig=True)
+    sweepi = i.get_sweep(sweepnr)
+    plot_sweep(sweepi,save_fig=True)
     plot_all_sweeps(i,save_fig=True)
     plot_all_sweeps(i, correction='pre_light_only',save_fig=True)
     plot_all_sweeps(i, correction='pre_and_after_light',save_fig=True)

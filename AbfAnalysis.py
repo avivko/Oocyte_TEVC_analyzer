@@ -12,7 +12,8 @@ class ActiveAbf:
         self.abf_data = pyabf.ABF(abf_file)
         self._abf_file_path = abf_file
         self._data_points_per_sec = self.abf_data.dataRate
-        self._sweeps = self.abf_data.sweepCount
+        self._nr_of_sweeps = self.abf_data.sweepCount
+        self.sweep_list = {}
 
     def sweep_count(self):
         return self.abf_data.sweepCount
@@ -20,16 +21,71 @@ class ActiveAbf:
     def which_abf_file(self):
         return self._abf_file_path
 
-    def get_sweep_voltages(self):
+    def get_sweep_input_voltages(self):
         sweep_voltages = {}
-        for sweepNumber in range(self._sweeps):
+        for sweepNumber in range(self._nr_of_sweeps):
             self.abf_data.setSweep(sweepNumber)
             sweep_voltages[sweepNumber] = self.abf_data.sweepC[round(len(self.abf_data.sweepC) / 2)]
         return sweep_voltages
 
+    def get_voltage_changes(self):
+        avg_voltages_and_their_changes = {}
+        nr_of_sweeps = self.sweep_count()
+        for i in range(nr_of_sweeps):
+            avg_sweep_voltages_and_changes = {}
+            sweep_number = nr_of_sweeps - 1 - i
+            sweep_interation = self.get_sweep(sweep_number)
+            sweep_times = sweep_interation.times
+            sweep_voltages = sweep_interation.voltages
+
+            t_light_on = sweep_interation.t_shutter_on
+            t_t_light_on_index = get_index_of_closest_value(t_light_on, sweep_times)
+            avg_voltage_before_light_at_ss = np.average(sweep_voltages[t_t_light_on_index - 10:t_t_light_on_index])
+            avg_sweep_voltages_and_changes['before (at ss)'] = avg_voltage_before_light_at_ss
+
+            t_light_off = sweep_interation.t_shutter_off
+            t_light_off_index = get_index_of_closest_value(t_light_off, sweep_times)
+            avg_voltage_during_light_at_ss = np.average(sweep_voltages[t_light_off_index - 10:t_light_off_index])
+            avg_sweep_voltages_and_changes['during (at ss)'] = avg_voltage_during_light_at_ss
+
+            t_clamp_off = sweep_interation.t_clamp_off
+            t_clamp_off_index = get_index_of_closest_value(t_clamp_off, sweep_times)
+            avg_voltage_after_light_at_ss = np.average(sweep_voltages[t_clamp_off_index - 10:t_clamp_off_index])
+            avg_sweep_voltages_and_changes['after (at ss)'] = avg_voltage_after_light_at_ss
+
+            delta_before_and_during_light = abs(avg_voltage_during_light_at_ss - avg_voltage_before_light_at_ss)
+            avg_sweep_voltages_and_changes['delta(before,during)'] = delta_before_and_during_light
+            delta_before_and_after_light = abs(avg_voltage_after_light_at_ss - avg_voltage_before_light_at_ss)
+            avg_sweep_voltages_and_changes['delta(before,after)'] = delta_before_and_after_light
+            avg_voltages_and_their_changes['sweep' + str(sweep_number)] = avg_sweep_voltages_and_changes
+
+        return avg_voltages_and_their_changes
+
+
+    def get_stst_currents(self):
+        stst_currents = {}
+        nr_of_sweeps = self.sweep_count()
+        for i in range(nr_of_sweeps):
+            sweep_number = nr_of_sweeps - 1 - i
+            sweep_interation = self.get_sweep(sweep_number)
+            assert sweep_interation.currents_are_corrected, "currents are not yet corrected! could not get steady" \
+                                                            " states currents before correction"
+            sweep_times = sweep_interation.times
+            sweep_currents = sweep_interation.currents
+            sweep_t_light_off = sweep_interation.t_shutter_off
+            t_stst_end = sweep_t_light_off
+            t_stst_end_index = get_index_of_closest_value(t_stst_end, sweep_times)
+            t_stst_start = sweep_t_light_off - 0.5
+            t_stst_start_index = get_index_of_closest_value(t_stst_start, sweep_times)
+            stst_current = np.average(sweep_currents[t_stst_start_index:t_stst_end_index])
+            stst_currents['sweep' + str(sweep_number)] = stst_current
+        return stst_currents
+
+
+
     def get_raw_abf_data(self):
         some_data = {}
-        for sweepNumber in range(self._sweeps):
+        for sweepNumber in range(self._nr_of_sweeps):
             self.abf_data.setSweep(sweepNumber)
             some_data[sweepNumber] = {
                 'sweep number': sweepNumber,
@@ -38,6 +94,11 @@ class ActiveAbf:
                 'sweep times (seconds)': self.abf_data.sweepX
             }
         return some_data
+
+    def get_sweep(self, sweep_num):
+        returned_sweep = sweep(self._abf_file_path,sweep_num)
+        self.sweep_list['sweep'+str(sweep_num)] = returned_sweep
+        return returned_sweep
 
 
 class sweep(ActiveAbf):
@@ -168,43 +229,9 @@ def plot_sweep(sweep, show_plot=True ,plot_interval=None, correction=None, save_
             str(analysis_results_folder) + '/' + str(save_to_path.stem) + '_sweep_' + str(sweep.sweep_nr) + '_plot.pdf')
 
 
-def get_voltage_changes(ActiveAbf):
-    avg_voltages_and_their_changes = {}
-    nr_of_sweeps = ActiveAbf.sweep_count()
-    for i in range(nr_of_sweeps):
-        avg_sweep_voltages_and_changes = {}
-        sweep_number = nr_of_sweeps - 1 - i
-        sweep_interation = sweep(ActiveAbf.which_abf_file(), sweep_number)
-        sweep_times = sweep_interation.times
-        sweep_voltages = sweep_interation.voltages
-
-        t_light_on = sweep_interation.t_shutter_on
-        t_t_light_on_index = get_index_of_closest_value(t_light_on, sweep_times)
-        avg_voltage_before_light_at_ss = np.average(sweep_voltages[t_t_light_on_index - 10:t_t_light_on_index])
-        avg_sweep_voltages_and_changes['before (at ss)'] = avg_voltage_before_light_at_ss
-
-        t_light_off = sweep_interation.t_shutter_off
-        t_light_off_index = get_index_of_closest_value(t_light_off, sweep_times)
-        avg_voltage_during_light_at_ss = np.average(sweep_voltages[t_light_off_index - 10:t_light_off_index])
-        avg_sweep_voltages_and_changes['during (at ss)'] = avg_voltage_during_light_at_ss
-
-        t_clamp_off = sweep_interation.t_clamp_off
-        t_clamp_off_index = get_index_of_closest_value(t_clamp_off, sweep_times)
-        avg_voltage_after_light_at_ss = np.average(sweep_voltages[t_clamp_off_index - 10:t_clamp_off_index])
-        avg_sweep_voltages_and_changes['after (at ss)'] = avg_voltage_after_light_at_ss
-
-        delta_before_and_during_light = abs(avg_voltage_during_light_at_ss - avg_voltage_before_light_at_ss)
-        avg_sweep_voltages_and_changes['delta(before,during)'] = delta_before_and_during_light
-        delta_before_and_after_light = abs(avg_voltage_after_light_at_ss - avg_voltage_before_light_at_ss)
-        avg_sweep_voltages_and_changes['delta(before,after)'] = delta_before_and_after_light
-        avg_voltages_and_their_changes['sweep' + str(sweep_number)] = avg_sweep_voltages_and_changes
-
-    return avg_voltages_and_their_changes
-
-
 def plot_all_sweeps(active_abf, show_plot=True, plot_interval=None, correction=None, save_fig=False):
     if plot_interval is None:
-        first_sweep = sweep(active_abf.which_abf_file(), 1)
+        first_sweep = active_abf.get_sweep(1)
         plot_interval = auto_interval_to_plot(first_sweep)
     else:
         assert (type(plot_interval) == list and len(plot_interval) == 2)
@@ -212,7 +239,7 @@ def plot_all_sweeps(active_abf, show_plot=True, plot_interval=None, correction=N
     fig, ax = plt.subplots(1)
     for i in range(nr_of_sweeps):
         sweep_number = nr_of_sweeps - 1 - i
-        sweep_interation = sweep(active_abf.which_abf_file(), sweep_number)
+        sweep_interation = active_abf.get_sweep(sweep_number)
         time = sweep_interation.times
         if correction is None:
             current = sweep_interation.currents
@@ -234,7 +261,6 @@ def plot_all_sweeps(active_abf, show_plot=True, plot_interval=None, correction=N
     if show_plot:
         plt.show()
 
-
     if save_fig:
         save_to_path = Path(active_abf.which_abf_file())
         analysis_results_folder = Path(str(save_to_path.parent) + '/analysis_results/')
@@ -243,3 +269,4 @@ def plot_all_sweeps(active_abf, show_plot=True, plot_interval=None, correction=N
             fig.savefig(str(analysis_results_folder) + '/' + str(save_to_path.stem) + '_all_sweeps_not_corrected_plot.pdf')
         else:
             fig.savefig(str(analysis_results_folder) + '/' + str(save_to_path.stem) + '_all_sweeps_corrected_' + correction + '_plot.pdf')
+
