@@ -15,7 +15,7 @@ Right now it could do the following:
 
 2. Clone the repository to your machine 
 
-3. Make sure the follow modules are installed for the environment you are running this script on: pyabf, matplotlib.pyplot, numpy, pandas, lmfit, pathlib, glob . 
+3. Make sure the following modules are installed for the environment you are running this script on: [pyabf](https://pypi.org/project/pyabf/), [matplotlib](https://pypi.org/project/matplotlib/), [numpy](https://pypi.org/project/numpy/), [pandas](https://pypi.org/project/pandas/), [lmfit](https://pypi.org/project/lmfit/), [pathlib](https://pypi.org/project/pathlib/), [glob](https://pypi.org/project/glob2/) . 
 You can install them using [pip](https://pip.pypa.io/en/stable/) like this:
 
 ```bash
@@ -34,7 +34,7 @@ Or from anywhere (for example from a folder where you have saved you .abf files)
 ```bash
 python PATH/TO_REOPOSITORY/TECV_analyzer.py
 ```
-Which will prompt a dialog which will make sure you have set up everything correctly and guide you through different options as to running this program.
+Which will prompt a dialog that will make sure you have set up everything correctly and guide you through different possible options when running this program.
 
 
 
