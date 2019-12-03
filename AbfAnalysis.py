@@ -9,7 +9,8 @@ from fitting import *
 ### parameters ###
 photocurrents_ss_duration = 0.5  # [sec] , is the duration of time before the shutter is closed
                                     # where steadystate photucurrents are assumed
-
+plotting_buffer = 0.5            # [sec] , is the duration of time before and after the photocurrents that will be shown in the
+                                    # plot
 
 ##################
 
@@ -230,11 +231,11 @@ def correct_current_via_linear_baseline(sweep, initial_function_pre_light='expon
 
 
 def auto_interval_to_plot(sweep):
-    t_start = sweep.t_shutter_on - 1
-    t_end = sweep.t_shutter_off + 1
+    t_start = sweep.t_shutter_on - plotting_buffer
+    t_end = sweep.t_shutter_off + plotting_buffer
     if (t_start < sweep.t_clamp_on) or (t_end > sweep.t_clamp_off):
-        t_start = sweep.t_shutter_on - 0.5
-        t_end = sweep.t_shutter_off + 0.5
+        t_start = sweep.t_shutter_on - plotting_buffer/2
+        t_end = sweep.t_shutter_off + plotting_buffer/2
 
     first_element = get_index_of_closest_value(t_start, sweep.times)
     last_element = get_index_of_closest_value(t_end, sweep.times)

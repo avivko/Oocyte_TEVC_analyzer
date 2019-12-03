@@ -7,6 +7,12 @@ import numpy as np
 import statistics
 import warnings
 
+### parameters ###
+default_assumed_t_ss = 0.4            # [sec] , the time assumed after the shutter is closed in which no photocurrets
+                                       # should  still be detected
+default_start_of_pre_light_fit = 1.5  # [sec], the duration of time before the light is on which should be used for the
+                                     # pre-light fit per default if t0 is not defined
+##################
 
 def linear(t, m, y0):
     return m * t + y0
@@ -135,11 +141,11 @@ def fit_exponential(x, y, fixed_y0=None, t_shift=0, make_plot=False):
 
         if linear_result[1].redchi > result.redchi:
             raise ValueError('The reduced chi of the linear fit is even worse . Chi =' + str(linear_result[1].redchi) +
-                             '. Chi of both fits is too large!. Try to begin the sweep from a later time point')
+                             '. Chi of both fits is too large!. Plot the sweeps to check if the data is good enough')
         else:
             if linear_result[1].redchi > 15:
                 warnings.warn('The reduced chi of the linear fit is still bigger than 15. Chi =' + str(linear_result[1].redchi) +
-                              '. Make sure to look if the plot makes sense')
+                              '. Make sure to look if the resulting plot makes sense')
             result = linear_result[1]
             best_function = linear_result[0]
     else:
@@ -152,8 +158,8 @@ def fit_pre_light(sweep, initial_fit_type, t0=None, make_plot=True):
     sweep_currents = sweep.currents
     t_light_on = sweep.t_shutter_on
     t_light_on_index = get_index_of_closest_value(t_light_on, sweep_times)
-    if t0 is None:  # if starting time for fit is not specified, 1.5 s before the light will be taken
-        t0 = t_light_on - 1.5
+    if t0 is None:
+        t0 = t_light_on - default_start_of_pre_light_fit
     assert (t0 > sweep.t_clamp_on), 'the first fit should not start before the capacitance peak: ' + str(
         t0) + ' > ' + str(sweep.t_clamp_on)
     assert sweep_times[0] <= t0 <= sweep_times[-1], 't0 is out of range sweep interval'
@@ -198,8 +204,8 @@ def calculate_linear_photocurrent_baseline(sweep, t_ss=None, fit_also_after_t_ss
     t_light_on = sweep.t_shutter_on
     t_light_off = sweep.t_shutter_off
     t_clamp_off = sweep.t_clamp_off
-    if t_ss is None:  # if starting time for fit is not specified, taking 0.5 after light as no more photocurrents time
-        t_ss = t_light_off + 0.5
+    if t_ss is None:  # if starting time for fit is not specified, taking param 'default_assumed_t_ss' from above
+        t_ss = t_light_off + default_assumed_t_ss
     assert (
         t_light_off < t_ss < t_clamp_off), 'the steady state time point should not start before the light is off and ' \
                                            'not after the voltage clamp is off: {0} < {1} < {2}'.format(
