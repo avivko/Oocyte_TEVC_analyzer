@@ -251,7 +251,7 @@ def correct_currents(sweep, correction):
     return corrected_currents
 
 
-def plot_sweep(sweep, show_plot=True, plot_interval=None, correction=None, save_fig=False):
+def plot_sweep(sweep, show_plot=False, plot_interval=None, correction=None, save_fig=False):
     if plot_interval is None:
         plot_interval = auto_interval_to_plot(sweep)
     else:
@@ -283,9 +283,10 @@ def plot_sweep(sweep, show_plot=True, plot_interval=None, correction=None, save_
         analysis_results_folder = sweep.make_output_folder()
         fig.savefig(
             str(analysis_results_folder) + '/' + str(sweep_path.stem) + '_sweep_' + str(sweep.sweep_nr) + '_plot.pdf')
+        plt.close()
 
 
-def plot_all_sweeps(active_abf, show_plot=True, plot_interval=None, correction=None, save_fig=False):
+def plot_all_sweeps(active_abf, show_plot=False, plot_interval=None, correction=None, save_fig=False):
     if plot_interval is None:
         first_sweep = active_abf.get_sweep(0)
         plot_interval = auto_interval_to_plot(first_sweep)
@@ -324,3 +325,4 @@ def plot_all_sweeps(active_abf, show_plot=True, plot_interval=None, correction=N
         else:
             fig.savefig(str(analysis_results_folder) + '/' + str(
                 abf_path.stem) + '_all_sweeps_corrected_' + correction + '_plot.pdf')
+        plt.close()
