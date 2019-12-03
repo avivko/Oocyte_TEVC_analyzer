@@ -1,6 +1,6 @@
 # Oocyte_TEVC_analyzer
 
-Oocyte_TVEC_analyzer is a program made to automatically analyze data from two-electrode voltage clamp recordings collected with the program [Axon™pCLAMP™ Clampex](http://mdc.custhelp.com/app/answers/detail/a_id/18779/~/axon%E2%84%A2pclamp%E2%84%A2-10-electrophysiology-data-acquisition-%26-analysis-software-download)
+Oocyte_TVEC_analyzer is a program made to automatically analyze data from two-electrode voltage clamp recordings (.abf binary files) collected with the program [Axon™pCLAMP™ Clampex](http://mdc.custhelp.com/app/answers/detail/a_id/18779/~/axon%E2%84%A2pclamp%E2%84%A2-10-electrophysiology-data-acquisition-%26-analysis-software-download)
 meant to be run over the terminal. It is meant to help automate your workflow and help make even mediocre data useful without any extra effort.
 
 Right now it could do the following:
