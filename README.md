@@ -28,11 +28,11 @@ You should now be all set!
 
 You can access the program by running the following command from your local repository:
 ```bash
-python TECV_analyzer.py
+python TEVC_analyzer.py
 ```
 Or from anywhere (for example from a folder where you have saved you .abf files) by specifing the path to your repository:
 ```bash
-python PATH/TO_REOPOSITORY/TECV_analyzer.py
+python PATH/TO_REOPOSITORY/TEVC_analyzer.py
 ```
 Which will prompt a dialog that will make sure you have set up everything correctly and guide you through different possible options when running this program.
 
