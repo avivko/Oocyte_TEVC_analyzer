@@ -10,9 +10,9 @@ def no_args_dialog():
     print("Please make sure the following modules have been installed and that you are running on python >=3.5:")
     needed_modules = "pyabf", "matplotlib.pyplot", "numpy", "pandas", "lmfit", "pathlib", "glob"
     print(needed_modules)
-    py_ver = sys.version_info[0]+sys.version_info[1]/10
+    py_ver = sys.version_info[0] + sys.version_info[1] / 10
     if py_ver < 3.5:
-        raise Exception("Python ver. "+str(py_ver)+" is too old. Python 3.5 or above is required")
+        raise Exception("Python ver. " + str(py_ver) + " is too old. Python 3.5 or above is required")
     print("checking if installed...")
     for module in needed_modules:
         if not module in sys.modules:
@@ -46,7 +46,7 @@ def options_dialog():
 
 def run(input_option, input_path):
     assert input_option is None or 'u' or 'p' or 'v' or 'a'
-    print('Input: option, path = '+str(input_option)+', '+str(input_path))
+    print('Input: option, path = ' + str(input_option) + ', ' + str(input_path))
     if input_path is None:
         input_path = os.getcwd()
     if Path(input_path).is_file():
@@ -58,16 +58,16 @@ def run(input_option, input_path):
         imported_abfs = import_abfs_from_dic(folder_to_analyze)
         abfs_as_list = imported_abfs
     else:
-        raise ValueError('Bad path:'+str(input_path)+'could not be found / is incorrect')
+        raise ValueError('Bad path:' + str(input_path) + 'could not be found / is incorrect')
     for abf in abfs_as_list:
-        print("analyzing file", abf.which_abf_file(),"...")
-        if input_option is ('p' or 'a'):
+        print("analyzing file", abf.which_abf_file(), "...")
+        if input_option == 'p' or input_option == 'a':
             for i in range(abf.sweep_count()):
                 sweep_i = abf.get_sweep(i)
                 plot_sweep(sweep_i, save_fig=True)
-        if input_option is ('u' or 'a'):
+        if input_option == 'u' or input_option == 'a':
             plot_all_sweeps(abf, save_fig=True)
-        if input_option is ('v' or 'a'):
+        if input_option == 'v' or input_option == 'a':
             plot_all_sweeps(abf, correction='pre_light_only', save_fig=True)
         plot_all_sweeps(abf, correction='pre_and_after_light', save_fig=True)
         abf.export_analyzed_abf_data_to_csv()
