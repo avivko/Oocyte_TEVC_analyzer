@@ -45,7 +45,8 @@ def options_dialog():
 
 
 def run(input_option, input_path):
-    assert input_option is None or 'u' or 'p' or 'v' or 'a'
+    assert input_option is None or input_option == 'u' or input_option == 'p' or input_option == 'v' \
+           or input_option == 'a'
     print('Input: option, path = ' + str(input_option) + ', ' + str(input_path))
     if input_path is None:
         input_path = os.getcwd()
