@@ -140,7 +140,7 @@ def fit_exponential(x, y, fixed_y0=None, t_shift=0, make_plot=False):
         linear_result = fit_linear(x, y, make_plot=make_plot)
 
         if linear_result[1].redchi > result.redchi:
-            raise ValueError('The reduced chi of the linear fit is even worse . Chi =' + str(linear_result[1].redchi) +
+            raise AssertionError('The reduced chi of the linear fit is even worse . Chi =' + str(linear_result[1].redchi) +
                              '. Chi of both fits is too large!. Plot the sweeps to check if the data is good enough')
         else:
             if linear_result[1].redchi > 15:

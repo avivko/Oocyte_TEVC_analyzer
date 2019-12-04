@@ -125,34 +125,40 @@ class ActiveAbf:
 
     def export_analyzed_abf_data_to_csv(self):
         name_of_abf = Path(self.which_abf_file()).stem
-        currents_data = {"sweep_time_point[sec]": self.sweep_list["sweep1"].times}
+        currents_data = {"00_sweep_time_point[sec]": self.sweep_list["sweep0"].times}
         for i in range(self._nr_of_sweeps):
             sweep_in_abf = self.get_sweep(i)
-            currents_data["sweep" + str(i) + "_uncorrected_current[nA]"] = sweep_in_abf.original_currents
-            currents_data["sweep" + str(i) + "_corrected_current[A]"] = sweep_in_abf.currents
+            col_index_uncorrected = 1+2*i
+            col_index_corrected = 2+2*i
+            if col_index_corrected < 10:
+                pre_index = '0'
+            else:
+                pre_index = ''
+            currents_data[pre_index+str(col_index_uncorrected)+"_sweep" + str(i) + "_uncorrected_current[nA]"] = sweep_in_abf.original_currents
+            currents_data[pre_index+str(col_index_corrected)+"_sweep" + str(i) + "_corrected_current[nA]"] = sweep_in_abf.currents
 
-        currents_df = DataFrame(currents_data, columns=currents_data.keys())
+        currents_df = DataFrame(currents_data, columns=sorted(currents_data.keys()))
         output_folder = self.make_output_folder()
         currents_df.to_csv(str(output_folder) + '/' + str(name_of_abf) + '_currents.csv', index=None, header=True)
 
         stst_currents = self.get_stst_currents()
         voltage_changes = self.get_voltage_changes()
-        sweeps_data = {"sweep_nr": np.array([str(i) for i in range(self._nr_of_sweeps)]),
-                       "input_voltage[mV]": np.array(
+        sweeps_data = {"0_sweep_nr": np.array([str(i) for i in range(self._nr_of_sweeps)]),
+                       "1_input_voltage[mV]": np.array(
                            [self.get_sweep(i).input_voltage for i in range(self._nr_of_sweeps)]),
-                       "currents_during_light_at_steadystate[nA]": np.array(
+                       "2_currents_during_light_at_steadystate[nA]": np.array(
                            [stst_currents["sweep" + str(i)]['ss current'] for i in range(self._nr_of_sweeps)]),
-                       "SD_of_currents_during_light_at_steadystate[nA]": np.array(
+                       "3_SD_of_currents_during_light_at_steadystate[nA]": np.array(
                            [stst_currents["sweep" + str(i)]['ss current sd'] for i in range(self._nr_of_sweeps)]),
-                       "voltage_during_light_at_steadystate[mV]": np.array(
+                       "4_voltage_during_light_at_steadystate[mV]": np.array(
                            [voltage_changes["sweep" + str(i)]['during (at ss)'] for i in range(self._nr_of_sweeps)]),
-                       "SD_of_voltage_during_light_at_steadystate[mV]": np.array(
+                       "5_SD_of_voltage_during_light_at_steadystate[mV]": np.array(
                            [voltage_changes["sweep" + str(i)]['sd of during (at ss)'] for i in range(self._nr_of_sweeps)]),
-                       "voltage_jump[mV]": np.array(
+                       "6_voltage_jump[mV]": np.array(
                            [voltage_changes["sweep" + str(i)]['voltage jump'] for i in range(self._nr_of_sweeps)]),
-                       "voltage_drift[mV]": np.array(
+                       "7_voltage_drift[mV]": np.array(
                            [voltage_changes["sweep" + str(i)]['voltage drift'] for i in range(self._nr_of_sweeps)])}
-        sweeps_df = DataFrame(sweeps_data, columns=sweeps_data.keys())
+        sweeps_df = DataFrame(sweeps_data, columns=sorted(sweeps_data.keys()))
 
         sweeps_df.to_csv(str(output_folder) + '/' + str(name_of_abf) + '_sweeps.csv', index=None, header=True)
 

@@ -68,10 +68,13 @@ def run(input_option, input_path):
                 plot_sweep(sweep_i, save_fig=True)
         if input_option == 'u' or input_option == 'a':
             plot_all_sweeps(abf, save_fig=True)
-        if input_option == 'v' or input_option == 'a':
-            plot_all_sweeps(abf, correction='pre_light_only', save_fig=True)
-        plot_all_sweeps(abf, correction='pre_and_after_light', save_fig=True)
-        abf.export_analyzed_abf_data_to_csv()
+        try:
+            if input_option == 'v' or input_option == 'a':
+                plot_all_sweeps(abf, correction='pre_light_only', save_fig=True)
+            plot_all_sweeps(abf, correction='pre_and_after_light', save_fig=True)
+            abf.export_analyzed_abf_data_to_csv()
+        except AssertionError:
+            warnings.warn('Could not correct the currents in this file. Skipping file!')
 
 
 def main():
@@ -91,12 +94,18 @@ def main():
                 given_path = None
             elif arguments[2][0] != '-':
                 given_option = None
-                given_path = arguments[2]
+                if arguments[2][-1] == '/':
+                    given_path = arguments[2]
+                else:
+                    given_path = arguments[2] + '/'
             else:
                 raise ValueError('given arguments are not available. please see --options')
         elif (nr_of_args == 3 and arguments[2][0]) == '-':
             given_option = arguments[2][1]
-            given_path = arguments[3]
+            if arguments[3][-1] == '/':
+                given_path = arguments[3]
+            else:
+                given_path = arguments[3] + '/'
         else:
             raise ValueError('given arguments are not available. please see --options')
         run(given_option, given_path)
