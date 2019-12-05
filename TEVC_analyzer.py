@@ -1,9 +1,9 @@
 from AbfAnalysis import *
 from fitting import *
-from importexport import *
+from importer import *
 import sys
 import os
-
+from loggerinitializer import *
 
 def no_args_dialog():
     print("Welcome to TECV Analyzer")
@@ -44,6 +44,14 @@ def options_dialog():
           "abf path")
 
 
+def make_log(abf):
+    output_folder_path = abf.make_output_folder()
+    initialize_logger(str(output_folder_path))
+   # logging.basicConfig(filename=str(output_folder_path)+'/0_analysis.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
+    #logging.captureWarnings(True)
+    #logging.warning('oh no')
+
+
 def run(input_option, input_path):
     assert input_option is None or input_option == 'u' or input_option == 'p' or input_option == 'v' \
            or input_option == 'a'
@@ -60,8 +68,10 @@ def run(input_option, input_path):
         abfs_as_list = imported_abfs
     else:
         raise ValueError('Bad path:' + str(input_path) + 'could not be found / is incorrect')
+    make_log(abfs_as_list[0])
     for abf in abfs_as_list:
-        print("analyzing file", abf.which_abf_file(), "...")
+        msg = "analyzing file " + abf.which_abf_file() + " ..."
+        logging.info(msg)
         if input_option == 'p' or input_option == 'a':
             for i in range(abf.sweep_count()):
                 sweep_i = abf.get_sweep(i)
@@ -74,7 +84,8 @@ def run(input_option, input_path):
             plot_all_sweeps(abf, correction='pre_and_after_light', save_fig=True)
             abf.export_analyzed_abf_data_to_csv()
         except AssertionError:
-            warnings.warn('Could not correct the currents in this file. Skipping file!')
+            logging.warning('Could not correct the currents in this file. Plotting uncorrected currents and skipping.')
+            plot_all_sweeps(abf, save_fig=True)
 
 
 def main():

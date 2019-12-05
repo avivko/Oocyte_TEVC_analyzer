@@ -5,7 +5,7 @@ from helpers import *
 from lmfit import Model
 import numpy as np
 import statistics
-import warnings
+import logging
 
 ### parameters ###
 default_assumed_t_ss = 0.4            # [sec] , the time assumed after the shutter is closed in which no photocurrets
@@ -135,7 +135,7 @@ def fit_exponential(x, y, fixed_y0=None, t_shift=0, make_plot=False):
     if make_plot:
         plot_fit(x, y, result)
     if result.redchi > 15:
-        warnings.warn('The reduced chi of the exponential fit is bigger than 15. Chi =' + str(result.redchi) +
+        logging.warning('The reduced chi of the exponential fit is bigger than 15. Chi =' + str(result.redchi) +
                       '. trying linear fit...')
         linear_result = fit_linear(x, y, make_plot=make_plot)
 
@@ -144,7 +144,7 @@ def fit_exponential(x, y, fixed_y0=None, t_shift=0, make_plot=False):
                              '. Chi of both fits is too large!. Plot the sweeps to check if the data is good enough')
         else:
             if linear_result[1].redchi > 15:
-                warnings.warn('The reduced chi of the linear fit is still bigger than 15. Chi =' + str(linear_result[1].redchi) +
+                logging.warning('The reduced chi of the linear fit is still bigger than 15. Chi =' + str(linear_result[1].redchi) +
                               '. Make sure to look if the resulting plot makes sense')
             result = linear_result[1]
             best_function = linear_result[0]
