@@ -9,11 +9,9 @@ import logging
 
 ### parameters ###
 default_assumed_t_ss = 0.5  # [sec] , the time assumed after the shutter is closed in which no photocurrets
-# should  still be detected
-default_start_of_pre_light_fit = 1.5  # [sec], the duration of time before the light is on which should be used for the
-
-
-# pre-light fit per default if t0 is not defined
+                                    # should  still be detected
+default_start_of_pre_light_fit = 1.0  # [sec], the duration of time before the light is on which should be used for the
+                                        # pre-light fit per default if t0 is not defined
 ##################
 
 def linear(t, m, y0):

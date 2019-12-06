@@ -80,7 +80,7 @@ class ActiveAbf:
         nr_of_sweeps = self.sweep_count()
         for i in range(nr_of_sweeps):
             sweep_number = nr_of_sweeps - 1 - i
-            sweep_interation = self.get_sweep(i)
+            sweep_interation = self.get_sweep(sweep_number)
             assert sweep_interation.currents_are_corrected, "currents are not yet corrected! could not get steady" \
                                                             " states currents before correction"
             sweep_times = sweep_interation.times
