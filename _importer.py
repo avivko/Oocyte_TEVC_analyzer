@@ -1,4 +1,4 @@
-from AbfAnalysis import *
+from _abfAnalysis import *
 import glob as glob
 from pathlib import Path
 

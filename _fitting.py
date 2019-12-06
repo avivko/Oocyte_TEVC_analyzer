@@ -1,7 +1,7 @@
 import matplotlib.patches as mpatches
 import matplotlib as plt
-from AbfAnalysis import *
-from helpers import *
+from _abfAnalysis import *
+from _helpers import *
 from lmfit import Model
 import numpy as np
 import statistics

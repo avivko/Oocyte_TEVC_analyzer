@@ -4,7 +4,7 @@ import numpy as np
 import os
 from pathlib import Path
 from pandas import DataFrame
-from fitting import *
+from _fitting import *
 import logging
 
 ### parameters ###

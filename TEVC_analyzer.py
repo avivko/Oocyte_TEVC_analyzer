@@ -1,9 +1,9 @@
-from AbfAnalysis import *
-from fitting import *
-from importer import *
+from _abfAnalysis import *
+from _fitting import *
+from _importer import *
 import sys
 import os
-from loggerinitializer import *
+from _loggerInitializer import *
 
 def no_args_dialog():
     print("Welcome to TECV Analyzer")
@@ -41,7 +41,7 @@ def options_dialog():
     print('<path_to_folder> : the path to a specific the folder where the to be analyzed .abf files are')
     print(' ')
     print("FYI: The plots and the analyzed currents and voltage data will be placed in an output folder in the given "
-          "abf path")
+          "abf path along with a log file")
 
 
 def make_log(abf):
