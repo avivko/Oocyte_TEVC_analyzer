@@ -7,8 +7,8 @@ def initialize_logger(output_dir):
     logger.setLevel(logging.INFO)
 
     # create error file handler and set level to error
-    handler = logging.FileHandler(os.path.join(output_dir, "analysis.log"), "w", encoding=None, delay="true")
+    handler = logging.FileHandler(os.path.join(output_dir, "analysis.log"), "a", encoding=None, delay="true")
     handler.setLevel(logging.INFO)
-    formatter = logging.Formatter("%(levelname)s - %(message)s")
+    formatter = logging.Formatter("%(asctime)s : %(levelname)s - %(message)s")
     handler.setFormatter(formatter)
     logger.addHandler(handler)

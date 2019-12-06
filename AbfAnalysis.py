@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from pandas import DataFrame
 from fitting import *
+import logging
 
 ### parameters ###
 photocurrents_ss_duration = 0.5  # [sec] , is the duration of time before the shutter is closed
@@ -254,7 +255,8 @@ def correct_currents(sweep, correction):
     elif correction == 'pre_and_after_light':
         corrected_currents = correct_current_via_linear_baseline(sweep)
     else:
-        raise ValueError('corrected should pre_light_only / pre_and_after_light. Is, however, ' + correction)
+        logging.error('corrected should pre_light_only / pre_and_after_light. Is, however, ' + correction)
+        raise ValueError
     return corrected_currents
 
 
@@ -270,7 +272,8 @@ def plot_sweep(sweep, show_plot=False, plot_interval=None, correction=None, save
     elif correction == 'pre_light_only' or 'pre_and_after_light':
         sweep_current = correct_currents(sweep, correction)
     else:
-        raise ValueError('corrected should be None / pre_light_only / pre_and_after_light. Is, however, ' + correction)
+        logging.error('corrected should be None / pre_light_only / pre_and_after_light. Is, however, ' + correction)
+        raise ValueError
     fig, axs = plt.subplots(2)
     axs[0].plot(sweep_time[plot_interval[0]:plot_interval[1]], sweep_current[plot_interval[0]:plot_interval[1]])
     axs[0].set(xlabel=sweep.times_title, ylabel=sweep.currents_title)
@@ -310,8 +313,8 @@ def plot_all_sweeps(active_abf, show_plot=False, plot_interval=None, correction=
         elif correction == 'pre_light_only' or 'pre_and_after_light':
             current = correct_currents(sweep_interation, correction)
         else:
-            raise ValueError(
-                'corrected should be None / pre_light_only / pre_and_after_light. Is, however, ' + correction)
+            logging.error('corrected should be None / pre_light_only / pre_and_after_light. Is, however, ' + correction)
+            raise ValueError
         ax.plot(time[plot_interval[0]:plot_interval[1]], current[plot_interval[0]:plot_interval[1]], alpha=.5,
                 label="{} mV".format(sweep_interation.input_voltage))
         ax.legend(loc='upper left', prop={'size': 8})

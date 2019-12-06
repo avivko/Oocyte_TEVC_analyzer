@@ -8,10 +8,12 @@ import statistics
 import logging
 
 ### parameters ###
-default_assumed_t_ss = 0.4            # [sec] , the time assumed after the shutter is closed in which no photocurrets
-                                       # should  still be detected
+default_assumed_t_ss = 0.5  # [sec] , the time assumed after the shutter is closed in which no photocurrets
+# should  still be detected
 default_start_of_pre_light_fit = 1.5  # [sec], the duration of time before the light is on which should be used for the
-                                     # pre-light fit per default if t0 is not defined
+
+
+# pre-light fit per default if t0 is not defined
 ##################
 
 def linear(t, m, y0):
@@ -78,7 +80,8 @@ def guess_init_vals(x, y, function_name):
         estimated_tau = estimated_y_ss / estimated_linear_slope
         return estimated_y_ss, estimated_tau
     else:
-        raise NotImplementedError('this function was not implemented for the function_name:', function_name)
+        logging.error('this function was not implemented for the function_name:', function_name)
+        raise NotImplementedError
 
 
 def plot_fit(x, y, fit_result):
@@ -93,7 +96,6 @@ def plot_fit(x, y, fit_result):
     handles.append(
         mpatches.Patch(color='none', label='R^2 = ' + str(truncate(get_r_squared_from_fit_results(fit_result), 2))))
     ax.legend(handles=handles)
-
 
 
 def fit_linear(x, y, make_plot=False):
@@ -128,26 +130,37 @@ def fit_exponential(x, y, fixed_y0=None, t_shift=0, make_plot=False):
             fit_model.set_param_hint('y0', value=fixed_y0, vary=False)
             params = fit_model.make_params(y_ss=y_ss)
         else:
-            raise ValueError('t_shift should be the time when the shutter is turned on (>= 0) but is:', str(t_shift))
+            logging.error('t_shift should be the time when the shutter is turned on (>= 0) but is:', str(t_shift))
+            raise ValueError
     else:
-        raise ValueError('starting_from_0 should be None/ the value of the fixed y0. is: ' + str(fixed_y0))
+        logging.error('starting_from_0 should be None/ the value of the fixed y0. is: ' + str(fixed_y0))
+        raise ValueError
     result = fit_model.fit(y, params, t=x)
     if make_plot:
         plot_fit(x, y, result)
     if result.redchi > 15:
-        logging.warning('The reduced chi of the exponential fit is bigger than 15. Chi =' + str(result.redchi) +
-                      '. trying linear fit...')
+        logging.warning('The reduced chi of the exponential fit is bigger than 15. Chi_red =' + str(result.redchi) +
+                        '. trying linear fit...')
         linear_result = fit_linear(x, y, make_plot=make_plot)
 
         if linear_result[1].redchi > result.redchi:
-            raise AssertionError('The reduced chi of the linear fit is even worse . Chi =' + str(linear_result[1].redchi) +
-                             '. Chi of both fits is too large!. Plot the sweeps to check if the data is good enough')
+            logging.error('The reduced chi of the linear fit is even worse . Chi_red ='
+                          + str(linear_result[1].redchi) +
+                          '. Chi of both fits is too large!. This sweep will not be corrected.')
+            raise AssertionError
         else:
-            if linear_result[1].redchi > 15:
-                logging.warning('The reduced chi of the linear fit is still bigger than 15. Chi =' + str(linear_result[1].redchi) +
-                              '. Make sure to look if the resulting plot makes sense')
-            result = linear_result[1]
-            best_function = linear_result[0]
+            if linear_result[1].redchi < 50:
+                result = linear_result[1]
+                best_function = linear_result[0]
+                if linear_result[1].redchi > 15:
+                    logging.warning('The reduced chi of the linear fit is still bigger than 15. Chi_red ='
+                                    + str(linear_result[1].redchi) +
+                                    '. Make sure to look if the resulting plot makes sense')
+            else:
+                logging.error('the reduced Chi of both fits is too large! Chi_red ='
+                              + str(linear_result[1].redchi) + 'This sweep will not be corrected.')
+                raise AssertionError
+
     else:
         best_function = 'exponential'
     return best_function, result
@@ -172,7 +185,8 @@ def fit_pre_light(sweep, initial_fit_type, t0=None, make_plot=True):
     if initial_fit_type == 'linear':
         return fit_linear(fit_time, fit_current, make_plot=make_plot)
     else:
-        raise NotImplementedError('this function was not implemented for the initial_fit_type:', initial_fit_type)
+        logging.error('this function was not implemented for the initial_fit_type:', initial_fit_type)
+        raise NotImplementedError
 
 
 def fit_also_after_light(sweep, initial_fit_type, t_ss, make_plot=False, fit_only_close_to_t_ss=False):
@@ -181,7 +195,7 @@ def fit_also_after_light(sweep, initial_fit_type, t_ss, make_plot=False, fit_onl
     t_light_off = sweep.t_shutter_off
     t_clamp_off = sweep.t_clamp_off
     if fit_only_close_to_t_ss:
-        t_end_fit = (t_clamp_off+t_light_off)/2
+        t_end_fit = (t_clamp_off + t_light_off) / 2
     else:
         t_end_fit = t_clamp_off - 0.01
 
@@ -191,14 +205,16 @@ def fit_also_after_light(sweep, initial_fit_type, t_ss, make_plot=False, fit_onl
     fit_time = sweep_times[t_ss_index:t_end_fit_index]
     fit_current = sweep_currents[t_ss_index:t_end_fit_index]
     if initial_fit_type == 'exponential':
-        return fit_time,fit_exponential(fit_time, fit_current, make_plot=make_plot)
+        return fit_time, fit_exponential(fit_time, fit_current, make_plot=make_plot)
     if initial_fit_type == 'linear':
-        return fit_time,fit_linear(fit_time, fit_current, make_plot=make_plot)
+        return fit_time, fit_linear(fit_time, fit_current, make_plot=make_plot)
     else:
-        raise NotImplementedError('this function was not implemented for the initial_fit_type:', initial_fit_type)
+        logging.error('this function was not implemented for the initial_fit_type:', initial_fit_type)
+        raise NotImplementedError
 
 
-def calculate_linear_photocurrent_baseline(sweep, t_ss=None, fit_also_after_t_ss=True, fit_after_function='exponential'):
+def calculate_linear_photocurrent_baseline(sweep, t_ss=None, fit_also_after_t_ss=True,
+                                           fit_after_function='exponential'):
     sweep_times = sweep.times
     sweep_currents = sweep.currents
     t_light_on = sweep.t_shutter_on
@@ -207,8 +223,8 @@ def calculate_linear_photocurrent_baseline(sweep, t_ss=None, fit_also_after_t_ss
     if t_ss is None:  # if starting time for fit is not specified, taking param 'default_assumed_t_ss' from above
         t_ss = t_light_off + default_assumed_t_ss
     assert (
-        t_light_off < t_ss < t_clamp_off), 'the steady state time point should not start before the light is off and ' \
-                                           'not after the voltage clamp is off: {0} < {1} < {2}'.format(
+            t_light_off < t_ss < t_clamp_off), 'the steady state time point should not start before the light is off and ' \
+                                               'not after the voltage clamp is off: {0} < {1} < {2}'.format(
         str(t_light_off), str(t_ss), str(t_clamp_off))
     assert sweep_times[0] <= t_ss <= sweep_times[-1], 'the steady state time is out of the range of the sweep interval'
     recorded_t_light_on = get_closest_value_from_ordered_array(t_light_on, sweep_times)
@@ -226,20 +242,20 @@ def calculate_linear_photocurrent_baseline(sweep, t_ss=None, fit_also_after_t_ss
     t_value_index = 0
     for t_value in sweep_times:
         if recorded_t_light_on <= t_value <= recorded_t_ss:
-            baseline[t_value_index] = linear(t_value-recorded_t_light_on, slope, 0)
+            baseline[t_value_index] = linear(t_value - recorded_t_light_on, slope, 0)
         elif t_value > recorded_t_ss:
-            baseline[t_value_index] = linear(recorded_t_ss-recorded_t_light_on, slope, 0)
+            baseline[t_value_index] = linear(recorded_t_ss - recorded_t_light_on, slope, 0)
         t_value_index += 1
-
 
     if fit_also_after_t_ss:
         fit_times, fit_results = fit_also_after_light(sweep, fit_after_function, t_ss)
-        estimated_currents_after_t_ss_via_fit=estimate_data_with_fit(fit_times,fit_results[0],fit_results[1])
-        baseline_shaped_est_currents= np.zeros(shape=sweep_times.shape)
+        estimated_currents_after_t_ss_via_fit = estimate_data_with_fit(fit_times, fit_results[0], fit_results[1])
+        baseline_shaped_est_currents = np.zeros(shape=sweep_times.shape)
         for i in range(len(estimated_currents_after_t_ss_via_fit)):
-            baseline_shaped_est_currents[t_ss_index+i] = estimated_currents_after_t_ss_via_fit[i] - estimated_currents_after_t_ss_via_fit[0]
+            baseline_shaped_est_currents[t_ss_index + i] = estimated_currents_after_t_ss_via_fit[i] - \
+                                                           estimated_currents_after_t_ss_via_fit[0]
         baseline += baseline_shaped_est_currents
-    #plt.plot(sweep_times, baseline) # plot to view the correction baseline
+    # plt.plot(sweep_times, baseline) # plot to view the correction baseline
     return baseline
 
 
