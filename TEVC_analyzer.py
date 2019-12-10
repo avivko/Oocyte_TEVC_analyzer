@@ -5,6 +5,7 @@ import sys
 import os
 from _loggerInitializer import *
 
+
 def no_args_dialog():
     print("Welcome to TECV Analyzer")
     print("Please make sure the following modules have been installed and that you are running on python >=3.5:")
@@ -47,9 +48,6 @@ def options_dialog():
 def make_log(abf):
     output_folder_path = abf.make_output_folder()
     initialize_logger(str(output_folder_path))
-   # logging.basicConfig(filename=str(output_folder_path)+'/0_analysis.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
-    #logging.captureWarnings(True)
-    #logging.warning('oh no')
 
 
 def run(input_option, input_path):

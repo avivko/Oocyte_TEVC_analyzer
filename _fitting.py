@@ -8,11 +8,16 @@ import statistics
 import logging
 
 ### parameters ###
-default_assumed_t_ss = 0.5  # [sec] , the time assumed after the shutter is closed in which no photocurrets
-                                    # should  still be detected
-default_start_of_pre_light_fit = 1.0  # [sec], the duration of time before the light is on which should be used for the
-                                        # pre-light fit per default if t0 is not defined
+default_assumed_t_ss = 0.5                      # [sec] , the time assumed after the shutter is closed in which no
+                                                    # photocurrets should still be detected
+default_start_of_pre_light_fit = 0.5            # [sec], the duration of time before the light is on which should be
+                                                    # used for the pre-light fit per default if t0 is not defined
+red_chi_upper_threshold = 50                    # the maximum reduced chi value allowed for a correction to be accepted
+red_chi_significant_improvement_factor = 0.05   # the improvement factor above which the exponential fit will be used
+                                                    #, where the improvemnt is calulated as 1-(red_chi_lin/red_chi_exp)
+
 ##################
+
 
 def linear(t, m, y0):
     return m * t + y0
@@ -95,6 +100,8 @@ def plot_fit(x, y, fit_result):
         mpatches.Patch(color='none', label='R^2 = ' + str(truncate(get_r_squared_from_fit_results(fit_result), 2))))
     ax.legend(handles=handles)
 
+    fig.show()
+
 
 def fit_linear(x, y, make_plot=False):
     init_m, init_y0 = guess_init_vals(x, y, 'linear')
@@ -133,38 +140,36 @@ def fit_exponential(x, y, fixed_y0=None, t_shift=0, make_plot=False):
     else:
         logging.error('starting_from_0 should be None/ the value of the fixed y0. is: ' + str(fixed_y0))
         raise ValueError
-    result = fit_model.fit(y, params, t=x)
+    exp_result = fit_model.fit(y, params, t=x)
+    exp_red_chi = exp_result.redchi
     if make_plot:
-        plot_fit(x, y, result)
-    if result.redchi > 15:
-        logging.warning('The reduced chi of the exponential fit is bigger than 15. Chi_red =' + str(result.redchi) +
-                        '. trying linear fit...')
-        linear_result = fit_linear(x, y, make_plot=make_plot)
+        plot_fit(x, y, exp_result)
 
-        if linear_result[1].redchi > result.redchi:
-            logging.error('The reduced chi of the linear fit is even worse . Chi_red ='
-                          + str(linear_result[1].redchi) +
-                          '. Chi of both fits is too large!. This sweep will not be corrected.')
-            raise AssertionError
-        else:
-            if linear_result[1].redchi < 50:
-                result = linear_result[1]
-                best_function = linear_result[0]
-                if linear_result[1].redchi > 15:
-                    logging.warning('The reduced chi of the linear fit is still bigger than 15. Chi_red ='
-                                    + str(linear_result[1].redchi) +
-                                    '. Make sure to look if the resulting plot makes sense')
-            else:
-                logging.error('the reduced Chi of both fits is too large! Chi_red ='
-                              + str(linear_result[1].redchi) + 'This sweep will not be corrected.')
-                raise AssertionError
+    linear_fit = fit_linear(x, y, make_plot=make_plot)
+    linear_result = linear_fit[1]
+    lin_red_chi = linear_result.redchi
 
-    else:
+    improvement_factor_of_exp_fit = 1-lin_red_chi/exp_red_chi
+    if improvement_factor_of_exp_fit >= red_chi_significant_improvement_factor:
+        logging.info('fitting dark currents as exponential')
+        result = exp_result
         best_function = 'exponential'
-    return best_function, result
+        red_chi = exp_red_chi
+    else:
+        result = linear_result
+        best_function = 'linear'
+        red_chi = lin_red_chi
+
+    if red_chi <= red_chi_upper_threshold:
+        return best_function, result
+    else:
+        logging.error('The reduced chi of the best fit ('+best_function+') is above the set threshold . Chi_red ='
+                      + str(red_chi) +
+                      '. This sweep will therefore not be corrected.')
+        raise AssertionError
 
 
-def fit_pre_light(sweep, initial_fit_type, t0=None, make_plot=True):
+def fit_pre_light(sweep, initial_fit_type, t0=None, make_plot=False):
     sweep_times = sweep.times
     sweep_currents = sweep.currents
     t_light_on = sweep.t_shutter_on

@@ -219,7 +219,7 @@ class sweep(ActiveAbf):
 def correct_current_via_pre_light_fit(sweep, initial_function='exponential'):
     sweep_times = sweep.times
     sweep_currents = sweep.currents
-    best_function, pre_light_fit_result = fit_pre_light(sweep, initial_function, make_plot=False)
+    best_function, pre_light_fit_result = fit_pre_light(sweep, initial_function)
     pre_light_fit_baseline = estimate_data_with_fit(sweep_times, best_function, pre_light_fit_result)
     baseline_corrected_currents = sweep_currents - pre_light_fit_baseline
     sweep.set_corrected_currents(baseline_corrected_currents, 'pre_light_only')
