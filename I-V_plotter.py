@@ -35,14 +35,28 @@ def get_path_list(construct_name):  # name as appears under the dic "measurement
     return const_path_list
 
 
-def average_measurements(construct_paths_list):
+def import_and_normalize_measurement(measurement_path,normalization_voltage=0):
+    measurement_data = import_sweeps_from_csv(measurement_path)
+    measurement_voltages, measurement_currents = measurement_data["voltagesAsList"], measurement_data[
+        "currentsAsList"]
+    measurement_data_best_fit_result = best_poly_fit(measurement_voltages, measurement_currents)
+    best_fit_polynomial = measurement_data_best_fit_result['polynomial']
+    current_at_norm_voltage = best_fit_polynomial(normalization_voltage)
+    normalized_currents = np.asarray(measurement_currents)/current_at_norm_voltage
+    return measurement_voltages, normalized_currents
+
+
+def average_measurements(construct_paths_list, normalize=False):
     assert len(construct_paths_list) >= 2, "At least 2 measurements for averaging!"
     voltages_list_of_lists = []
     currents_list_of_lists = []
     for measurement in construct_paths_list:
-        measurement_data = import_sweeps_from_csv(measurement)
-        measurement_voltages, measurement_currents = measurement_data["voltagesAsList"], measurement_data[
-            "currentsAsList"]
+        if normalize:
+            measurement_voltages, measurement_currents = import_and_normalize_measurement(measurement)
+        else:
+            measurement_data = import_sweeps_from_csv(measurement)
+            measurement_voltages, measurement_currents = measurement_data["voltagesAsList"], measurement_data[
+                "currentsAsList"]
         voltages_list_of_lists.append(measurement_voltages)
         currents_list_of_lists.append(measurement_currents)
     result = {
@@ -136,7 +150,7 @@ def get_closest_value_to_data(list_of_values, data):
 
 
 ### main ###
-'''
+
 RQ_7_5_Na_path_list = get_path_list('RQ_pH10_K')
 RQ_7_5_Na_averages = average_measurements(RQ_7_5_Na_path_list)
 
@@ -152,13 +166,13 @@ voltagesList, currentsList, currentsSDList, voltagesSDList = refData["voltagesAs
                                                              refData["currentsSDAsList"],\
                                                              refData["voltagesSDAsList"]
 
-
+'''
 bestFitResult = best_poly_fit(voltagesList, currentsList)
 refPolyFunction = bestFitResult['polynomial']
-print(refPolyFunction.roots)
+
 I_0 = refPolyFunction(0)
 E_rev = get_closest_value_to_data(refPolyFunction.roots, voltagesList)
-print(E_rev)
+
 bestFitDegree = bestFitResult['degree']
 bestFitRedChiSq = bestFitResult['red-chi-squared']
 bestFitRSquared = bestFitResult['r-squared']
