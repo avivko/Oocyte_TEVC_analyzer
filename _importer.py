@@ -31,18 +31,17 @@ def import_sweeps_from_csv(path):
         return list(nparray.reshape((nparray.size,)))
 
     df = pd.read_csv(path)
-    imported_data = {
-        "voltages": df[[col for col in df if "4_voltage" in col]].to_numpy(),
-        "voltagesSD": df[[col for col in df if "5_SD_of_voltage" in col]].to_numpy(),
-        "currents": df[[col for col in df if "2_currents" in col]].to_numpy(),
-        "currentsSD": df[[col for col in df if "3_SD_of_currents" in col]].to_numpy()
-    }
-    imported_data["voltagesAsList"] = DF_nparray_to_1_dim_list(imported_data["voltages"])
-    imported_data["currentsAsList"] = DF_nparray_to_1_dim_list(imported_data["currents"])
-    imported_data["voltagesSDAsList"] = DF_nparray_to_1_dim_list(imported_data["voltagesSD"])
-    imported_data["currentsSDAsList"] = DF_nparray_to_1_dim_list(imported_data["currentsSD"])
+    imported_data = {"voltagesAsNpyArray": df[[col for col in df if "4_voltage" in col]].to_numpy(),
+                     "voltagesStdAsNpyArray": df[[col for col in df if "5_SD_of_voltage" in col]].to_numpy(),
+                     "currentsAsNpyArray": df[[col for col in df if "2_currents" in col]].to_numpy(),
+                     "currentsStdAsNpyArray": df[[col for col in df if "3_SD_of_currents" in col]].to_numpy(),
+                     "name": file_path_as_object.stem}
+    imported_data["voltages"] = DF_nparray_to_1_dim_list(imported_data["voltagesAsNpyArray"])
+    imported_data["currents"] = DF_nparray_to_1_dim_list(imported_data["currentsAsNpyArray"])
+    imported_data["voltages_std"] = DF_nparray_to_1_dim_list(imported_data["voltagesStdAsNpyArray"])
+    imported_data["currents_std"] = DF_nparray_to_1_dim_list(imported_data["currentsStdAsNpyArray"])
 
-    imported_data["SDweights"] = 1 / (imported_data["voltagesSD"] * imported_data["currentsSD"])
-    imported_data["SDweightsAsList"] = list(imported_data["SDweights"].reshape((imported_data["SDweights"].size,)))
+    imported_data["weightsAsNpyArray"] = 1 / (imported_data["currentsStdAsNpyArray"])
+    imported_data["weights"] = list(imported_data["weightsAsNpyArray"].reshape((imported_data["weightsAsNpyArray"].size,)))
 
     return imported_data
