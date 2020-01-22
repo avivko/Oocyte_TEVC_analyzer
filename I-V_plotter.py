@@ -15,8 +15,8 @@ measurement_names = {
     'RQ_construct7_pH10_Na': ['2019_10_29_0033','2019_11_15_0100'],
     'RQ_construct7_pH7.5_K': ['2019_10_29_0025','2019_10_29_0060','2019_10_29_0092','2019_11_15_0085','2019_10_29_0080','2019_10_29_0094','2019_11_13_0059'],
     'RQ_construct7_pH10_K': ['2019_10_29_0027','2019_10_29_0061','2019_10_29_0093','2019_11_15_0094','2019_10_29_0081','2019_10_29_0095','2019_11_13_0081']
-
 }
+
 
 ### params ###
 outputsFolder = '/Volumes/PENDISK/analysis_results/'
@@ -228,7 +228,7 @@ def plot_iv_curve(measurements):
     else:
         raise ValueError(measurements)
 
-    plt.savefig("/Volumes/PENDISK/figuresoutput/figure.pdf")
+    plt.savefig("/Volumes/PENDISK/figuresoutput/figure"+str(colorindex)+".pdf")
     plt.show()
 
 
