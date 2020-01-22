@@ -6,10 +6,16 @@ from _helpers import truncate
 from _importer import import_sweeps_from_csv
 
 ### measurements of each construct ###
+# first five columns of RQ and first four columns of RQ_construct7 are from the same cells (excluding Na10)!
 measurement_names = {
     'RQ_pH7.5_Na': ['2019_11_26_0070', '2019_11_15_0061', '2019_11_12_0042', '2019_11_12_0022', '2019_11_11_0012'],
-    'RQ_pH7.5_K': ['2019_11_26_0068', '2019_11_15_0048', '2019_11_12_0034', '2019_11_12_0017', '2019_11_11_0014'],# '2019_11_26_0063',
+    'RQ_pH7.5_K': ['2019_11_26_0068', '2019_11_15_0048', '2019_11_12_0034', '2019_11_12_0017', '2019_11_11_0014'],
+    # '2019_11_26_0063',
     'RQ_pH10_K': ['2019_11_26_0069', '2019_11_15_0057', '2019_11_12_0037', '2019_11_12_0021', '2019_11_11_0013'],
+    'RQ_construct7_pH7.5_Na': ['2019_10_29_0031','2019_10_29_0063','2019_10_29_0085','2019_11_15_0098'],
+    'RQ_construct7_pH10_Na': ['2019_10_29_0033','2019_11_15_0100'],
+    'RQ_construct7_pH7.5_K': ['2019_10_29_0025','2019_10_29_0060','2019_10_29_0092','2019_11_15_0085'],
+    'RQ_construct7_pH10_K': ['2019_10_29_0027','2019_10_29_0061','2019_10_29_0093','2019_11_15_0094']
 
 }
 
@@ -40,7 +46,7 @@ def get_path_list(construct_name):  # name as appears under the dic "measurement
 def normalize_measurement(measurement_dic, ref_measurement_dic, normalization_voltage=0):
     measurement_currents, measurement_currents_std = measurement_dic[
                                                          "currents"], measurement_dic["currents_std"]
-    ref_measurement_voltages, ref_measurement_currents, ref_measurement_currents_std = ref_measurement_dic["voltages"],\
+    ref_measurement_voltages, ref_measurement_currents, ref_measurement_currents_std = ref_measurement_dic["voltages"], \
                                                                                        ref_measurement_dic[
                                                                                            "currents"], \
                                                                                        ref_measurement_dic[
@@ -52,7 +58,7 @@ def normalize_measurement(measurement_dic, ref_measurement_dic, normalization_vo
     normalized_currents = np.asarray(measurement_currents) / ref_current_at_norm_voltage
     normalization_normalized_currents_std = np.asarray(measurement_currents_std) / ref_current_at_norm_voltage
     result = {
-        "name":measurement_dic["name"],
+        "name": measurement_dic["name"],
         "voltages": measurement_dic["voltages"],
         "currents": normalized_currents,
         "currents_std": normalization_normalized_currents_std,
@@ -173,7 +179,8 @@ def plot_iv_curve(measurements):
     assert type(measurements) == tuple or type(measurements) == dict, 'bad type! Is a {}'.format(type(measurements))
     fig, ax = plt.subplots(1)
     colorindex = 0
-    colors = ['black','r', 'b', 'g', 'm', 'y']
+    colors = ['black', 'r', 'b', 'g', 'm', 'y']
+
     def plot_before_showing(measurement):
         name, voltages, currents, currents_std, voltages_std = measurement['name'], \
                                                                measurement['voltages'], \
@@ -191,23 +198,22 @@ def plot_iv_curve(measurements):
         bestFitRedChiSq = bestFitResult['red-chi-squared']
         bestFitRSquared = bestFitResult['r-squared']
 
-
-        ax.plot(voltages, refPolyFunction(voltages),colors[colorindex],
-                label='Polynomial fit (Degree={}) \n E_rev = {} mV'.format(bestFitDegree,str(truncate(E_rev, 2))))
         ax.errorbar(voltages, currents, yerr=currents_std, xerr=voltages_std, color=colors[colorindex],
-                    linestyle='None', marker='x', capsize=5, capthick=1, ecolor=colors[colorindex],label=name)
+                    linestyle='None', marker='x', capsize=5, capthick=1, ecolor=colors[colorindex], label=name)
+        ax.plot(voltages, refPolyFunction(voltages), colors[colorindex],
+                label='Polynomial fit (deg = {}) \n E_rev = {} mV'.format(bestFitDegree, str(truncate(E_rev, 2))))
         ax.spines['left'].set_position('zero')
         ax.spines['right'].set_color('none')
         ax.spines['bottom'].set_position('zero')
         ax.spines['top'].set_color('none')
         handles, labels = ax.get_legend_handles_labels()
-        #handles.append(mpatches.Patch(color='none', label='Red_chi^2 = ' + str(truncate(bestFitRedChiSq, 2))))
-        #handles.append(mpatches.Patch(color='none', label='R^2 = ' + str(truncate(bestFitRSquared, 2))))
-        #handles.append(mpatches.Patch(color='none', label='E_rev = {} mV'.format(str(truncate(E_rev, 2)))))
-        ax.legend(handles=handles)
+        # handles.append(mpatches.Patch(color='none', label='Red_chi^2 = ' + str(truncate(bestFitRedChiSq, 2))))
+        # handles.append(mpatches.Patch(color='none', label='R^2 = ' + str(truncate(bestFitRSquared, 2))))
+        # handles.append(mpatches.Patch(color='none', label='E_rev = {} mV'.format(str(truncate(E_rev, 2)))))
+        ax.legend(handles=handles,fontsize="small")
         ax.set_xlabel('Holding Potential [mV]')
         # ax.set_xlim([-105, 80])
-        # ax.set_ylim([-350, 350])
+        #ax.set_ylim([-10, 110])
         ax.xaxis.set_label_coords(0.95, 0.38)
         ax.yaxis.set_label_coords(0.49, 0.85)
         ax.set_ylabel('Normalized \nPhotocurrents')
@@ -216,70 +222,66 @@ def plot_iv_curve(measurements):
         for measurement in measurements:
             plot_before_showing(measurement)
             colorindex += 1
-        plt.show()
 
     elif type(measurements) == dict:
         plot_before_showing(measurements)
-        plt.show()
 
     else:
         raise ValueError(measurements)
 
+    plt.savefig("/Volumes/PENDISK/figuresoutput/figure.pdf")
+    plt.show()
+
+
+
 ### main ###
+
+
 
 RQ_7_5_Na_averages = average_measurements(get_path_list('RQ_pH7.5_Na'))
 RQ_7_5_Na_normalized_to_self = normalize_measurement(RQ_7_5_Na_averages, RQ_7_5_Na_averages)
+
 RQ_7_5_K_averages = average_measurements(get_path_list('RQ_pH7.5_K'))
-RQ_7_5_K_normalized_to_self = normalize_measurement(RQ_7_5_K_averages,RQ_7_5_K_averages)
-RQ_7_5_K_normalized_to_7_5_Na = normalize_measurement(RQ_7_5_K_averages,RQ_7_5_Na_averages)
+RQ_7_5_K_normalized_to_self = normalize_measurement(RQ_7_5_K_averages, RQ_7_5_K_averages)
+RQ_7_5_K_normalized_to_7_5_Na = normalize_measurement(RQ_7_5_K_averages, RQ_7_5_Na_averages)
+
 RQ_10_K_averages = average_measurements(get_path_list('RQ_pH10_K'))
-RQ_10_K_normalized_to_7_5_K = normalize_measurement(RQ_10_K_averages,RQ_7_5_K_averages)
-RQ_10_K_normalized_to_7_5_Na = normalize_measurement(RQ_10_K_averages,RQ_7_5_Na_averages)
+RQ_10_K_normalized_to_self = normalize_measurement(RQ_10_K_averages, RQ_10_K_averages)
+RQ_10_K_normalized_to_7_5_K = normalize_measurement(RQ_10_K_averages, RQ_7_5_K_averages)
+RQ_10_K_normalized_to_7_5_Na = normalize_measurement(RQ_10_K_averages, RQ_7_5_Na_averages)
+
+RQ_construct7_7_5_Na_averages = average_measurements(get_path_list('RQ_construct7_pH7.5_Na'))
+RQ_construct7_7_5_Na_normalized_to_self = normalize_measurement(RQ_construct7_7_5_Na_averages,RQ_construct7_7_5_Na_averages)
+RQ_construct7_7_5_Na_normalized_to_RQ_7_5_Na = normalize_measurement(RQ_construct7_7_5_Na_averages, RQ_7_5_Na_averages)
+
+RQ_construct7_10_Na_averages = average_measurements(get_path_list('RQ_construct7_pH10_Na'))
+RQ_construct7_10_Na_normalized_to_RQ_7_5_Na = normalize_measurement(RQ_construct7_10_Na_averages, RQ_7_5_Na_averages)
+RQ_construct7_10_Na_normalized_to_RQ_construct7_7_5_Na = normalize_measurement(RQ_construct7_10_Na_averages, RQ_construct7_7_5_Na_averages)
+
+RQ_construct7_7_5_K_averages = average_measurements(get_path_list('RQ_construct7_pH7.5_K'))
+RQ_construct7_7_5_K_normalized_to_RQ_7_5_Na = normalize_measurement(RQ_construct7_7_5_K_averages, RQ_7_5_Na_averages)
+RQ_construct7_7_5_K_normalized_to_RQ_7_5_K = normalize_measurement(RQ_construct7_7_5_K_averages,RQ_7_5_K_averages)
+RQ_construct7_7_5_K_normalized_to_RQ_construct7_7_5_Na = normalize_measurement(RQ_construct7_7_5_K_averages, RQ_construct7_7_5_Na_averages)
 
 
-measurements_to_compare = RQ_7_5_K_normalized_to_self, RQ_10_K_normalized_to_7_5_K
-Na_rel_measurements_to_compare = RQ_7_5_Na_normalized_to_self, RQ_7_5_K_normalized_to_7_5_Na, RQ_10_K_normalized_to_7_5_Na
+RQ_construct7_10_K_averages = average_measurements(get_path_list('RQ_construct7_pH10_K'))
+RQ_construct7_10_K_normalized_RQ_7_5_Na = normalize_measurement(RQ_construct7_10_K_averages, RQ_7_5_Na_averages)
+RQ_construct7_10_K_normalized_RQ_10_K = normalize_measurement(RQ_construct7_10_K_averages,RQ_10_K_averages)
+RQ_construct7_10_K_normalized_RQ_construct7_7_5_Na = normalize_measurement(RQ_construct7_10_K_averages, RQ_construct7_7_5_Na_averages)
 
-plot_iv_curve(RQ_7_5_Na_averages)
-plot_iv_curve(measurements_to_compare)
-plot_iv_curve(Na_rel_measurements_to_compare)
-'''
-refData = import_sweeps_from_csv(RefSweepsOutput)
-voltagesList, currentsList, currentsSDList, voltagesSDList = refData["voltages"], \
-                                                             refData["currents"],\
-                                                             refData["currents_std"],\
-                                                             refData["currents_std"]
+RQ_measurements_ion_comparison = RQ_7_5_Na_normalized_to_self, RQ_7_5_K_normalized_to_7_5_Na, RQ_10_K_normalized_to_7_5_Na
+RQ_construct7_measurements_ion_comparison = RQ_construct7_7_5_Na_normalized_to_self,RQ_construct7_7_5_K_normalized_to_RQ_construct7_7_5_Na,RQ_construct7_10_K_normalized_RQ_construct7_7_5_Na
+rel_Na_measurements_construct_comparison = RQ_7_5_Na_normalized_to_self, RQ_construct7_7_5_Na_normalized_to_RQ_7_5_Na
+rel_K_7_5_measurements_construct_comparison = RQ_7_5_K_normalized_to_self, RQ_construct7_7_5_K_normalized_to_RQ_7_5_K
+rel_K_10_measurements_construct_comparison = RQ_10_K_normalized_to_self, RQ_construct7_10_K_normalized_RQ_10_K
 
 
-bestFitResult = best_poly_fit(voltagesList, currentsList, y_SD=currentsSDList)
-#bestFitResult = polyfit_with_stats(voltagesList, currentsList, 2, y_SD=None)
-refPolyFunction = bestFitResult['polynomial']
+#plot_iv_curve(import_sweeps_from_csv(outputsFolder+'2019_10_29_0013'+sweepsSuffix))
+plot_iv_curve(rel_Na_measurements_construct_comparison)
+plot_iv_curve(RQ_measurements_ion_comparison)
+plot_iv_curve(RQ_construct7_measurements_ion_comparison)
+plot_iv_curve(rel_K_7_5_measurements_construct_comparison)
+plot_iv_curve(rel_K_10_measurements_construct_comparison)
 
 
-E_rev = get_closest_value_to_data(refPolyFunction.roots, voltagesList)
 
-bestFitDegree = bestFitResult['degree']
-bestFitRedChiSq = bestFitResult['red-chi-squared']
-bestFitRSquared = bestFitResult['r-squared']
-
-fig, ax = plt.subplots(1)
-ax.plot(voltagesList, refPolyFunction(voltagesList), 'r',
-        label='Polynomial fit (Degree={})'.format(bestFitDegree))
-ax.errorbar(voltagesList, currentsList, yerr=currentsSDList, xerr=voltagesSDList, color='black', linestyle='None', marker='x', capsize=5, capthick=1, ecolor='black',label='Data point')
-ax.spines['left'].set_position('zero')
-ax.spines['right'].set_color('none')
-ax.spines['bottom'].set_position('zero')
-ax.spines['top'].set_color('none')
-handles, labels = ax.get_legend_handles_labels()
-#handles.append(mpatches.Patch(color='none', label='Red_chi^2 = ' + str(truncate(bestFitRedChiSq, 2))))
-handles.append(mpatches.Patch(color='none', label='R^2 = ' + str(truncate(bestFitRSquared, 2))))
-handles.append(mpatches.Patch(color='none', label='E_rev = {} mV'.format(str(truncate(E_rev, 2)))))
-ax.legend(handles=handles)
-ax.set_xlabel('Voltage [mV]')
-#ax.set_xlim([-105, 80])
-#ax.set_ylim([-350, 350])
-ax.xaxis.set_label_coords(0.95, 0.44)
-ax.yaxis.set_label_coords(0.49, 0.85)
-ax.set_ylabel('Steady-State \nPhotocurrents [nA]')
-fig.show()
-'''
