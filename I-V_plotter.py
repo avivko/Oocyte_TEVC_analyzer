@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from _helpers import truncate
 from _importer import import_sweeps_from_csv
+from datetime import datetime
 
 ### measurements of each construct ###
 # first five columns of RQ and first four columns of RQ_construct7 are from the same cells (excluding Na10)!
@@ -63,21 +64,30 @@ def normalize_measurement(measurement_dic, ref_measurement_dic, normalization_vo
         "currents_std": normalization_normalized_currents_std,
         "voltages_std": measurement_dic["voltages_std"]
     }
+    if 'avg_E_rev' in measurement_dic:
+        result['avg_E_rev'] = measurement_dic['avg_E_rev']
+        result['avg_E_rev_std'] = measurement_dic['avg_E_rev_std']
     return result
 
 
-def average_measurements(construct_paths_list):
+def average_measurements(construct_paths_list, get_Erev_stats=True):
     name = construct_paths_list['name']
     construct_paths_list = construct_paths_list['path list']
     assert len(construct_paths_list) >= 2, "At least 2 measurements for averaging!"
     voltages_list_of_lists = []
     currents_list_of_lists = []
+    E_rev_list_of_lists = []
     for measurement in construct_paths_list:
         measurement_data = import_sweeps_from_csv(measurement)
-        measurement_voltages, measurement_currents = measurement_data["voltages"], measurement_data[
-            "currents"]
+        measurement_voltages, measurement_currents,measurement_currents_std = measurement_data["voltages"], measurement_data[
+            "currents"],measurement_data['currents_std']
         voltages_list_of_lists.append(measurement_voltages)
         currents_list_of_lists.append(measurement_currents)
+        if get_Erev_stats:
+            measurement_best_fit_result = best_poly_fit(measurement_voltages, measurement_currents, y_SD=measurement_currents_std)
+            ref_poly_function = measurement_best_fit_result['polynomial']
+            measurement_E_rev = get_closest_value_to_data(ref_poly_function.roots, measurement_voltages)
+            E_rev_list_of_lists.append(measurement_E_rev)
     result = {
         'name': name,
         'voltages': np.mean(voltages_list_of_lists, axis=0),
@@ -85,6 +95,9 @@ def average_measurements(construct_paths_list):
         'currents': np.mean(currents_list_of_lists, axis=0),
         'currents_std': np.std(currents_list_of_lists, axis=0)
     }
+    if get_Erev_stats:
+        result['avg_E_rev'] = np.mean(E_rev_list_of_lists, axis=0)
+        result['avg_E_rev_std'] = np.std(E_rev_list_of_lists, axis=0)
     return result
 
 
@@ -174,7 +187,7 @@ def get_closest_value_to_data(list_of_values, data):
     return min(list_of_values, key=lambda x: abs(x - center_of_data))
 
 
-def plot_iv_curve(measurements):
+def plot_iv_curve(measurements, get_Erev_stats=False):
     assert type(measurements) == tuple or type(measurements) == dict, 'bad type! Is a {}'.format(type(measurements))
     fig, ax = plt.subplots(1)
     colorindex = 0
@@ -199,8 +212,17 @@ def plot_iv_curve(measurements):
 
         ax.errorbar(voltages, currents, yerr=currents_std, xerr=voltages_std, color=colors[colorindex],
                     linestyle='None', marker='x', capsize=5, capthick=1, ecolor=colors[colorindex], label=name)
-        ax.plot(voltages, refPolyFunction(voltages), colors[colorindex],
-                label='Polynomial fit (deg = {}) \n E_rev = {} mV'.format(bestFitDegree, str(truncate(E_rev, 2))))
+        if get_Erev_stats:
+            avg_E_rev = measurement['avg_E_rev']
+            avg_E_rev_std = measurement['avg_E_rev_std']
+            ax.plot(voltages, refPolyFunction(voltages), colors[colorindex],
+                    label='Polynomial fit (deg = {}) \n Avg_fit_E_rev = {} mV \n Avg_measured_E_rev = {} '
+                          '+/- {} mV'.format(bestFitDegree, str(truncate(E_rev, 2)),str(truncate(avg_E_rev, 2)),
+                                             str(truncate(avg_E_rev_std, 2))))
+        else:
+            ax.plot(voltages, refPolyFunction(voltages), colors[colorindex],
+                    label='Polynomial fit (deg = {}) \n E_rev = {} mV'.format(bestFitDegree, str(truncate(E_rev, 2))))
+
         ax.spines['left'].set_position('zero')
         ax.spines['right'].set_color('none')
         ax.spines['bottom'].set_position('zero')
@@ -209,13 +231,12 @@ def plot_iv_curve(measurements):
         # handles.append(mpatches.Patch(color='none', label='Red_chi^2 = ' + str(truncate(bestFitRedChiSq, 2))))
         # handles.append(mpatches.Patch(color='none', label='R^2 = ' + str(truncate(bestFitRSquared, 2))))
         # handles.append(mpatches.Patch(color='none', label='E_rev = {} mV'.format(str(truncate(E_rev, 2)))))
-        ax.legend(handles=handles,fontsize="small")
-        ax.set_xlabel('Holding Potential [mV]')
+        ax.legend(handles=handles,fontsize="x-small")
+        ax.set_xlabel('Holding Potential [mV]', horizontalalignment='right', x=1.0)
         # ax.set_xlim([-105, 80])
         #ax.set_ylim([-10, 110])
-        ax.xaxis.set_label_coords(0.95, 0.38)
-        ax.yaxis.set_label_coords(0.49, 0.85)
-        ax.set_ylabel('Normalized \nPhotocurrents')
+
+        ax.set_ylabel('Normalized \nPhotocurrents', horizontalalignment='right', y=1.0)
 
     if type(measurements) == tuple:
         for measurement in measurements:
@@ -228,7 +249,8 @@ def plot_iv_curve(measurements):
     else:
         raise ValueError(measurements)
 
-    plt.savefig("/Volumes/PENDISK/figuresoutput/figure"+str(colorindex)+".pdf")
+    time_stamp = datetime.now().strftime('%Y_%m_%d-%H_%M_%S_%f')
+    plt.savefig("/Volumes/Transcend/ivplots_outputs/ivplot"+str(time_stamp)+".pdf")
     plt.show()
 
 
@@ -276,11 +298,11 @@ rel_K_10_measurements_construct_comparison = RQ_10_K_normalized_to_self, RQ_cons
 
 
 #plot_iv_curve(import_sweeps_from_csv(outputsFolder+'2019_10_29_0013'+sweepsSuffix))
-plot_iv_curve(rel_Na_measurements_construct_comparison)
-plot_iv_curve(RQ_measurements_ion_comparison)
-plot_iv_curve(RQ_construct7_measurements_ion_comparison)
-plot_iv_curve(rel_K_7_5_measurements_construct_comparison)
-plot_iv_curve(rel_K_10_measurements_construct_comparison)
+plot_iv_curve(rel_Na_measurements_construct_comparison, get_Erev_stats=True)
+plot_iv_curve(RQ_measurements_ion_comparison, get_Erev_stats=True)
+plot_iv_curve(RQ_construct7_measurements_ion_comparison, get_Erev_stats=True)
+plot_iv_curve(rel_K_7_5_measurements_construct_comparison, get_Erev_stats=True)
+plot_iv_curve(rel_K_10_measurements_construct_comparison, get_Erev_stats=True)
 
 
 
