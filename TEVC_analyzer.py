@@ -16,7 +16,7 @@ def no_args_dialog():
         raise Exception("Python ver. " + str(py_ver) + " is too old. Python 3.5 or above is required")
     print("checking if installed...")
     for module in needed_modules:
-        if not module in sys.modules:
+        if module not in sys.modules:
             raise ModuleNotFoundError(module)
     print("modules are indeed installed!")
     print("Please run \'TECV_analyzer.py --options\' for the different options of running this script ")

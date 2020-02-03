@@ -7,15 +7,20 @@ from _importer import import_sweeps_from_csv
 from datetime import datetime
 
 ### measurements of each construct ###
-# first five columns of RQ and first four columns of RQ_construct7 are from the same cells (excluding Na10)!
+# first five columns of RQ and first four columns of RQ_construct7 are from mostly the same cells (excluding Na10)!
 measurement_names = {
-    'RQ_pH7.5_Na': ['2019_11_26_0070', '2019_11_15_0061', '2019_11_12_0042', '2019_11_12_0022', '2019_11_11_0012'],
-    'RQ_pH7.5_K': ['2019_11_26_0068', '2019_11_15_0048', '2019_11_12_0034', '2019_11_12_0017', '2019_11_11_0014','2019_11_15_0037'],
-    'RQ_pH10_K': ['2019_11_26_0069', '2019_11_15_0057', '2019_11_12_0037', '2019_11_12_0021', '2019_11_11_0013','2019_11_15_0057'],
+    'RQ_pH7.5_Na': ['2019_11_26_0070', '2019_11_12_0042', '2019_11_11_0012'],
+    'RQ_pH7.5_K': ['2019_11_26_0068', '2019_11_15_0048', '2019_11_12_0034', '2019_11_11_0014','2019_11_15_0037'],
+    'RQ_pH10_K': ['2019_11_26_0069', '2019_11_15_0057', '2019_11_12_0037', '2019_11_11_0013','2019_11_15_0057'],
+
     'RQ_construct7_pH7.5_Na': ['2019_10_29_0031','2019_10_29_0063','2019_10_29_0085','2019_11_15_0098'],
     'RQ_construct7_pH10_Na': ['2019_10_29_0033','2019_11_15_0100'],
     'RQ_construct7_pH7.5_K': ['2019_10_29_0025','2019_10_29_0060','2019_10_29_0092','2019_11_15_0085','2019_10_29_0080','2019_10_29_0094','2019_11_13_0059'],
-    'RQ_construct7_pH10_K': ['2019_10_29_0027','2019_10_29_0061','2019_10_29_0093','2019_11_15_0094','2019_10_29_0081','2019_10_29_0095','2019_11_13_0081']
+    'RQ_construct7_pH10_K': ['2019_10_29_0027','2019_10_29_0061','2019_10_29_0093','2019_11_15_0094','2019_10_29_0081','2019_10_29_0095','2019_11_13_0081'],
+
+    'RQ_construct4_pH7.5_Na':['2019_11_26_0026','2019_11_26_0034','2019_11_26_0046','2019_11_26_0058'],
+    'RQ_construct4_pH7.5_K':['2019_11_26_0023','2019_11_26_0030','2019_11_26_0044','2019_11_26_0056'],
+    'RQ_construct4_pH10_K':['2019_11_26_0024','2019_11_26_0032','2019_11_26_0045','2019_11_26_0057']
 }
 
 
@@ -271,6 +276,20 @@ RQ_10_K_normalized_to_self = normalize_measurement(RQ_10_K_averages, RQ_10_K_ave
 RQ_10_K_normalized_to_7_5_K = normalize_measurement(RQ_10_K_averages, RQ_7_5_K_averages)
 RQ_10_K_normalized_to_7_5_Na = normalize_measurement(RQ_10_K_averages, RQ_7_5_Na_averages)
 
+RQ_construct4_7_5_Na_averages = average_measurements(get_path_list('RQ_construct4_pH7.5_Na'))
+RQ_construct4_7_5_Na_normalized_to_self = normalize_measurement(RQ_construct4_7_5_Na_averages,RQ_construct4_7_5_Na_averages)
+RQ_construct4_7_5_Na_normalized_to_RQ_7_5_Na = normalize_measurement(RQ_construct4_7_5_Na_averages, RQ_7_5_Na_averages)
+
+RQ_construct4_7_5_K_averages = average_measurements(get_path_list('RQ_construct4_pH7.5_K'))
+RQ_construct4_7_5_K_normalized_to_RQ_7_5_Na = normalize_measurement(RQ_construct4_7_5_K_averages, RQ_7_5_Na_averages)
+RQ_construct4_7_5_K_normalized_to_RQ_7_5_K = normalize_measurement(RQ_construct4_7_5_K_averages,RQ_7_5_K_averages)
+RQ_construct4_7_5_K_normalized_to_RQ_construct4_7_5_Na = normalize_measurement(RQ_construct4_7_5_K_averages, RQ_construct4_7_5_Na_averages)
+
+RQ_construct4_10_K_averages = average_measurements(get_path_list('RQ_construct4_pH10_K'))
+RQ_construct4_10_K_normalized_RQ_7_5_Na = normalize_measurement(RQ_construct4_10_K_averages, RQ_7_5_Na_averages)
+RQ_construct4_10_K_normalized_RQ_10_K = normalize_measurement(RQ_construct4_10_K_averages,RQ_10_K_averages)
+RQ_construct4_10_K_normalized_RQ_construct4_7_5_Na = normalize_measurement(RQ_construct4_10_K_averages, RQ_construct4_7_5_Na_averages)
+
 RQ_construct7_7_5_Na_averages = average_measurements(get_path_list('RQ_construct7_pH7.5_Na'))
 RQ_construct7_7_5_Na_normalized_to_self = normalize_measurement(RQ_construct7_7_5_Na_averages,RQ_construct7_7_5_Na_averages)
 RQ_construct7_7_5_Na_normalized_to_RQ_7_5_Na = normalize_measurement(RQ_construct7_7_5_Na_averages, RQ_7_5_Na_averages)
@@ -292,14 +311,16 @@ RQ_construct7_10_K_normalized_RQ_construct7_7_5_Na = normalize_measurement(RQ_co
 
 RQ_measurements_ion_comparison = RQ_7_5_Na_normalized_to_self, RQ_7_5_K_normalized_to_7_5_Na, RQ_10_K_normalized_to_7_5_Na
 RQ_construct7_measurements_ion_comparison = RQ_construct7_7_5_Na_normalized_to_self,RQ_construct7_7_5_K_normalized_to_RQ_construct7_7_5_Na,RQ_construct7_10_K_normalized_RQ_construct7_7_5_Na
-rel_Na_measurements_construct_comparison = RQ_7_5_Na_normalized_to_self, RQ_construct7_7_5_Na_normalized_to_RQ_7_5_Na
-rel_K_7_5_measurements_construct_comparison = RQ_7_5_K_normalized_to_self, RQ_construct7_7_5_K_normalized_to_RQ_7_5_K
-rel_K_10_measurements_construct_comparison = RQ_10_K_normalized_to_self, RQ_construct7_10_K_normalized_RQ_10_K
+RQ_construct4_measurements_ion_comparison = RQ_construct4_7_5_Na_normalized_to_self,RQ_construct4_7_5_K_normalized_to_RQ_construct4_7_5_Na,RQ_construct4_10_K_normalized_RQ_construct4_7_5_Na
+rel_Na_measurements_construct_comparison = RQ_7_5_Na_normalized_to_self, RQ_construct4_7_5_Na_normalized_to_RQ_7_5_Na, RQ_construct7_7_5_Na_normalized_to_RQ_7_5_Na,
+rel_K_7_5_measurements_construct_comparison = RQ_7_5_K_normalized_to_self, RQ_construct4_7_5_K_normalized_to_RQ_7_5_K,RQ_construct7_7_5_K_normalized_to_RQ_7_5_K
+rel_K_10_measurements_construct_comparison = RQ_10_K_normalized_to_self, RQ_construct4_10_K_normalized_RQ_10_K,RQ_construct7_10_K_normalized_RQ_10_K
 
 
 #plot_iv_curve(import_sweeps_from_csv(outputsFolder+'2019_10_29_0013'+sweepsSuffix))
 plot_iv_curve(rel_Na_measurements_construct_comparison, get_Erev_stats=True)
 plot_iv_curve(RQ_measurements_ion_comparison, get_Erev_stats=True)
+plot_iv_curve(RQ_construct4_measurements_ion_comparison, get_Erev_stats=True)
 plot_iv_curve(RQ_construct7_measurements_ion_comparison, get_Erev_stats=True)
 plot_iv_curve(rel_K_7_5_measurements_construct_comparison, get_Erev_stats=True)
 plot_iv_curve(rel_K_10_measurements_construct_comparison, get_Erev_stats=True)

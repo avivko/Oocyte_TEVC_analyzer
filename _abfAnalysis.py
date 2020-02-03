@@ -179,7 +179,7 @@ class sweep(ActiveAbf):
         self.currents = self.abf_data.sweepY
         self.currents_title = self.abf_data.sweepLabelY
         self.times = self.abf_data.sweepX
-        self.times_title = self.abf_data.sweepLabelX
+        self.times_title = self.abf_data.sweepLabelX.capitalize()
         self.input_voltage = self.abf_data.sweepC[round(len(self.abf_data.sweepC) / 2)]
         self.input_voltage_title = 'Digital Input Clamp Voltage (mV)'
         self.abf_data.setSweep(sweep_nr, 1)
@@ -260,7 +260,7 @@ def correct_currents(sweep, correction):
     return corrected_currents
 
 
-def plot_sweep(sweep, show_plot=False, plot_interval=None, correction=None, save_fig=False):
+def plot_sweep(sweep, show_plot=False, plot_interval=None, correction=None, save_fig=False, specified_y_plot_range=None):
     if plot_interval is None:
         plot_interval = auto_interval_to_plot(sweep)
     else:
@@ -284,6 +284,8 @@ def plot_sweep(sweep, show_plot=False, plot_interval=None, correction=None, save
         ax.label_outer()  # Hide x labels and tick labels for top plots and y ticks for right plots.
         ax.grid(alpha=.2)
         ax.axvspan(sweep.t_shutter_on, sweep.t_shutter_off, color='orange', alpha=.3, lw=0)
+        if specified_y_plot_range:
+            ax.set_ylim([specified_y_plot_range[0], specified_y_plot_range[1]])
 
     if show_plot:
         plt.show()
@@ -296,7 +298,7 @@ def plot_sweep(sweep, show_plot=False, plot_interval=None, correction=None, save
         plt.close()
 
 
-def plot_all_sweeps(active_abf, show_plot=False, plot_interval=None, correction=None, save_fig=False):
+def plot_all_sweeps(active_abf, show_plot=False, plot_interval=None, correction=None, save_fig=False, specified_y_plot_range=None):
     if plot_interval is None:
         first_sweep = active_abf.get_sweep(0)
         plot_interval = auto_interval_to_plot(first_sweep)
@@ -323,7 +325,8 @@ def plot_all_sweeps(active_abf, show_plot=False, plot_interval=None, correction=
             ax.label_outer()  # Hide x labels and tick labels for top plots and y ticks for right plots.
             ax.grid(alpha=.2)
             ax.axvspan(sweep_interation.t_shutter_on, sweep_interation.t_shutter_off, color='orange', alpha=.3, lw=0)
-
+        if specified_y_plot_range:
+            ax.set_ylim([specified_y_plot_range[0],specified_y_plot_range[1]])
     if show_plot:
         plt.show()
 
